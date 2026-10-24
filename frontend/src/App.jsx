@@ -1,24 +1,71 @@
-import React from 'react';
-import Navbar from './components/Navbar';
-import Dashboard from './components/Dashboard';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import axios from 'axios';
+import { RolePortalLayout } from './components/layout/RolePortalLayout';
+import { CitizenDashboard } from './pages/dashboards/CitizenDashboard';
+import { OfficerDashboard } from './pages/dashboards/OfficerDashboard';
+import { AdminDashboard } from './pages/dashboards/AdminDashboard';
 
 export default function App() {
+  const [backendStatus, setBackendStatus] = useState('checking'); // 'connected' | 'disconnected' | 'checking'
+  const [backendMessage, setBackendMessage] = useState('');
+
+  // Retain existing axios health check to http://localhost:8000/api/health
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkHealth = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/api/health', {
+          timeout: 4000,
+        });
+        if (isMounted) {
+          if (response.data && response.data.status === 'ok') {
+            setBackendStatus('connected');
+            setBackendMessage(response.data.message || 'API is healthy');
+          } else {
+            setBackendStatus('disconnected');
+            setBackendMessage('Unexpected response from /api/health');
+          }
+        }
+      } catch (err) {
+        if (isMounted) {
+          setBackendStatus('disconnected');
+          setBackendMessage(err.message || 'Backend unreachable');
+        }
+      }
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 25000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
-      {/* GovTech Slate-900 Navbar with Role Switcher */}
-      <Navbar />
-
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <Dashboard />
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
-        <p>
-          NakshaNetra &bull; GovTech Automated Building Bye-Law Scrutiny Engine &bull; Built with FastAPI, React & Gemini 1.5
-        </p>
-      </footer>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          element={
+            <RolePortalLayout
+              backendStatus={backendStatus}
+              backendMessage={backendMessage}
+            />
+          }
+        >
+          <Route path="/" element={<Navigate to="/citizen" replace />} />
+          <Route path="/citizen" element={<CitizenDashboard />} />
+          <Route path="/citizen/*" element={<CitizenDashboard />} />
+          <Route path="/officer" element={<OfficerDashboard />} />
+          <Route path="/officer/*" element={<OfficerDashboard />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/*" element={<AdminDashboard />} />
+          <Route path="*" element={<Navigate to="/citizen" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
