@@ -25,7 +25,7 @@ const roleProfiles = {
     portalSubtitle: 'Building Plan Self-Service & Compliance Submission',
     badgeText: 'Citizen Public',
     badgeColorClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    user: { name: 'Ravi Kumar', role: 'CITIZEN', zone: 'South Delhi Division' },
+    user: { name: 'Anjali Sharma', role: 'CITIZEN', zone: 'Delhi Resident' },
     navItems: [
       { path: '/citizen', label: 'Submit Naksha & Overview', icon: FileUp },
       { path: '/citizen/applications', label: 'My Submissions', icon: FileText, badge: '3' },
@@ -37,7 +37,7 @@ const roleProfiles = {
     portalSubtitle: 'GovTech Field Scrutiny & Sanction Review Queue',
     badgeText: 'Enforcement Officer',
     badgeColorClass: 'bg-blue-100 text-blue-800 border-blue-200',
-    user: { name: 'Priya Sharma', role: 'FIELD_OFFICER', zone: 'Zone IV Scrutiny Wing' },
+    user: { name: 'Ravi Kumar', role: 'OFFICER', zone: 'South Delhi Division' },
     navItems: [
       { path: '/officer', label: 'Scrutiny Queue', icon: ClipboardList, badge: '5' },
       { path: '/officer/inspections', label: 'Site Verifications', icon: Building2 },
@@ -49,7 +49,7 @@ const roleProfiles = {
     portalSubtitle: 'National Building Code Engine Governance & Audit',
     badgeText: 'System Admin',
     badgeColorClass: 'bg-slate-900 text-white border-slate-700',
-    user: { name: 'Amit Verma', role: 'DEV_ADMIN', zone: 'National Compliance HQ' },
+    user: { name: 'Priya Desai', role: 'ADMIN', zone: 'Central Command HQ' },
     navItems: [
       { path: '/admin', label: 'Platform Telemetry', icon: Activity },
       { path: '/admin/audit', label: 'Scrutiny Audit Logs', icon: ShieldCheck },
@@ -61,10 +61,13 @@ const roleProfiles = {
 export const RolePortalLayout = ({
   backendStatus = 'checking',
   backendMessage = '',
-  onLogout = () => {},
+  onLogout,
+  navItems,
+  user: userProp,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const handleLogout = onLogout || (() => navigate('/'));
 
   // Determine current active role from URL
   const currentRoleKey = location.pathname.startsWith('/officer')
@@ -74,6 +77,7 @@ export const RolePortalLayout = ({
     : 'citizen';
 
   const activeConfig = roleProfiles[currentRoleKey];
+  const effectiveNavItems = navItems || activeConfig.navItems;
 
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = localStorage.getItem('gov_sidebar_expanded');
@@ -88,12 +92,13 @@ export const RolePortalLayout = ({
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const sidebarCollapsed = !isExpanded;
 
-  const currentNav = activeConfig.navItems.find(
+  const currentNav = effectiveNavItems.find(
     (n) => location.pathname === n.path || (n.path !== `/${currentRoleKey}` && location.pathname.startsWith(n.path))
   );
 
   const pageTitle = currentNav?.label ?? activeConfig.portalTitle;
-  const displayName = activeConfig.user.name;
+  const effectiveUser = userProp || activeConfig.user;
+  const displayName = effectiveUser.name;
   const initials = displayName
     .split(' ')
     .map((n) => n[0])
@@ -102,11 +107,11 @@ export const RolePortalLayout = ({
 
   const user = {
     name: displayName,
-    role: activeConfig.user.role,
-    zone: activeConfig.user.zone,
-    email: `${currentRoleKey}@nakshanetra.gov.in`,
-    badgeText: activeConfig.badgeText,
-    badgeColorClass: activeConfig.badgeColorClass,
+    role: effectiveUser.role,
+    zone: effectiveUser.zone,
+    email: effectiveUser.email || `${currentRoleKey}@nakshanetra.gov.in`,
+    badgeText: effectiveUser.badgeText || activeConfig.badgeText,
+    badgeColorClass: effectiveUser.badgeColorClass || activeConfig.badgeColorClass,
     initials,
   };
 
@@ -167,7 +172,7 @@ export const RolePortalLayout = ({
         {/* Navigation Items */}
         <nav className="flex-1 py-5 overflow-y-auto">
           <ul className="space-y-1.5 px-3">
-            {activeConfig.navItems.map(({ path, label, icon: Icon, badge }) => (
+            {effectiveNavItems.map(({ path, label, icon: Icon, badge }) => (
               <li key={path}>
                 <NavLink
                   to={path}
@@ -324,7 +329,7 @@ export const RolePortalLayout = ({
                   {displayName}
                 </p>
                 <p className="text-[10px] text-slate-500 leading-tight mt-0.5 truncate max-w-[140px]">
-                  {activeConfig.user.zone}
+                  {user.zone}
                 </p>
               </div>
             </button>
@@ -341,7 +346,7 @@ export const RolePortalLayout = ({
             {/* Log Out */}
             <button
               type="button"
-              onClick={onLogout}
+              onClick={handleLogout}
               className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-colors cursor-pointer"
               title="Log Out"
             >

@@ -13,6 +13,7 @@ import schemas
 import mimetypes
 from gemini_service import extract_naksha_data
 from rule_engine import evaluate_compliance
+from tinyfish_service import fetch_regulatory_citation
 
 app = FastAPI(
     title="NakshaNetra API",
@@ -376,16 +377,14 @@ def create_application(
 
 @app.post("/api/rules/verify-source", response_model=schemas.VerifyRuleResponse)
 def verify_rule_source(
-    payload: schemas.VerifyRuleRequest,
+    request: schemas.VerifyRuleRequest,
 ):
     """
-    Stub for TinyFish automated bye-law source & legal citation verification.
-    Stage 5 will integrate the live TinyFish Web Scraping / Citation Agent API.
+    Scrapes and verifies live regulatory citations for building bye-laws
+    using the TinyFish Web Agent API with timeout and graceful fallback.
     """
-    return {
-        "citation": "Verified via TinyFish: Delhi Master Plan 2021, Chapter 4, Section 2.1.",
-        "url": "https://dda.gov.in/master-plan",
-    }
+    result = fetch_regulatory_citation(rule_code=request.rule_code, parameter=request.parameter)
+    return result
 
 
 @app.get("/api/rules")
