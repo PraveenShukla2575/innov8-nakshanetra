@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
+import { ProfileModal } from '../profile/ProfileModal';
 import {
   LogOut,
   ChevronLeft,
@@ -13,10 +14,9 @@ import {
   FileText,
   ClipboardList,
   Activity,
-  Sparkles,
   BookOpen,
   Settings,
-  UserCheck,
+  Terminal,
 } from 'lucide-react';
 
 const roleProfiles = {
@@ -85,6 +85,7 @@ export const RolePortalLayout = ({
   }, [isExpanded]);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const sidebarCollapsed = !isExpanded;
 
   const currentNav = activeConfig.navItems.find(
@@ -98,6 +99,16 @@ export const RolePortalLayout = ({
     .map((n) => n[0])
     .join('')
     .toUpperCase() || 'U';
+
+  const user = {
+    name: displayName,
+    role: activeConfig.user.role,
+    zone: activeConfig.user.zone,
+    email: `${currentRoleKey}@nakshanetra.gov.in`,
+    badgeText: activeConfig.badgeText,
+    badgeColorClass: activeConfig.badgeColorClass,
+    initials,
+  };
 
   const handleRoleChange = (e) => {
     const newPath = e.target.value;
@@ -200,24 +211,60 @@ export const RolePortalLayout = ({
           </ul>
         </nav>
 
-        {/* Role Quick Switcher in Sidebar Footer */}
-        {!sidebarCollapsed && (
-          <div className="px-4 py-3 mx-3 mb-2 bg-slate-50 border border-slate-200 rounded-xl">
-            <div className="flex items-center gap-1.5 mb-1.5 text-slate-500">
-              <Sparkles size={13} className="text-amber-500" />
-              <span className="text-[11px] font-bold uppercase tracking-wider">Demo Switcher</span>
+        {/* Developer-Only Demo Mode Switcher */}
+        <div className="p-3 border-t border-slate-200 bg-slate-50/80">
+          {!sidebarCollapsed ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between px-0.5">
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <Terminal size={12} className="text-slate-400" />
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                    Demo Mode
+                  </span>
+                </div>
+                <span className="text-[9px] font-mono bg-slate-200/80 text-slate-600 px-1.5 py-0.5 rounded font-medium">
+                  dev-switch
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-200/70 rounded-lg">
+                {[
+                  { id: 'citizen', label: 'Citizen', path: '/citizen' },
+                  { id: 'officer', label: 'Officer', path: '/officer' },
+                  { id: 'admin', label: 'Admin', path: '/admin' },
+                ].map((item) => {
+                  const isActive = currentRoleKey === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => navigate(item.path)}
+                      className={`py-1 text-[11px] font-semibold rounded-md transition-all text-center cursor-pointer ${
+                        isActive
+                          ? 'bg-white text-navy-900 shadow-xs'
+                          : 'text-slate-600 hover:text-navy-900 hover:bg-white/50'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <select
-              value={`/${currentRoleKey}`}
-              onChange={handleRoleChange}
-              className="w-full text-xs font-semibold text-navy-800 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20 cursor-pointer"
-            >
-              <option value="/citizen">Citizen Portal</option>
-              <option value="/officer">Field Officer Portal</option>
-              <option value="/admin">Admin Workspace</option>
-            </select>
-          </div>
-        )}
+          ) : (
+            <div className="flex justify-center" title="Developer Demo Switcher">
+              <select
+                aria-label="Demo Role"
+                value={`/${currentRoleKey}`}
+                onChange={handleRoleChange}
+                className="w-11 h-7 text-[10px] font-mono font-bold bg-slate-200/80 text-slate-700 rounded-md text-center cursor-pointer focus:outline-none"
+              >
+                <option value="/citizen">CIT</option>
+                <option value="/officer">OFF</option>
+                <option value="/admin">ADM</option>
+              </select>
+            </div>
+          )}
+        </div>
 
         {/* Desktop Collapse Toggle */}
         <div className="hidden lg:flex items-center justify-center py-3 border-t border-slate-200">
@@ -260,56 +307,19 @@ export const RolePortalLayout = ({
             </div>
           </div>
 
-          {/* Header Controls: Role Switcher, Backend Health, Profile */}
+          {/* Header Controls: Profile Box, Notifications, Log Out */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Demo Role Switcher Dropdown (Header) */}
-            <div className="flex items-center bg-slate-100 hover:bg-slate-200/80 border border-slate-200 rounded-xl px-2.5 py-1.5 transition-colors">
-              <UserCheck size={14} className="text-primary-600 mr-1.5 shrink-0" />
-              <select
-                aria-label="Demo Role Switcher"
-                value={`/${currentRoleKey}`}
-                onChange={handleRoleChange}
-                className="bg-transparent text-xs font-bold text-navy-900 focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="/citizen">Citizen</option>
-                <option value="/officer">Officer</option>
-                <option value="/admin">Admin</option>
-              </select>
-            </div>
-
-            {/* Backend Health Check Pill */}
-            {backendStatus === 'connected' ? (
-              <div
-                title={backendMessage || 'FastAPI Backend Healthy'}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="hidden sm:inline">Backend Connected</span>
-              </div>
-            ) : backendStatus === 'checking' ? (
-              <div
-                title="Pinging FastAPI backend..."
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"
-              >
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                <span className="hidden sm:inline">Connecting...</span>
-              </div>
-            ) : (
-              <div
-                title={backendMessage || 'Cannot connect to http://localhost:8000/api/health'}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200"
-              >
-                <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                <span className="hidden sm:inline">Backend Disconnected</span>
-              </div>
-            )}
-
-            {/* User Profile Badge */}
-            <div className="hidden md:flex items-center gap-2.5 pl-2 border-l border-slate-200">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-800 text-xs font-bold border border-primary-200">
+            {/* User Profile Container (Interactive Modal Trigger) */}
+            <button
+              type="button"
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              title="Click to view User Profile & Audit Records"
+            >
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-800 text-xs font-bold border border-primary-200 shrink-0">
                 {initials}
               </div>
-              <div className="text-right">
+              <div className="hidden sm:block text-left">
                 <p className="text-xs font-bold text-navy-900 leading-tight truncate max-w-[140px]">
                   {displayName}
                 </p>
@@ -317,24 +327,26 @@ export const RolePortalLayout = ({
                   {activeConfig.user.zone}
                 </p>
               </div>
-            </div>
+            </button>
 
             {/* Notifications Bell */}
             <button
-              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              type="button"
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
               title="Notifications"
             >
               <Bell size={17} />
             </button>
 
-            {/* Sign Out */}
+            {/* Log Out */}
             <button
+              type="button"
               onClick={onLogout}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-colors"
-              title="Sign Out"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-colors cursor-pointer"
+              title="Log Out"
             >
               <LogOut size={14} />
-              <span>Exit</span>
+              <span>Log Out</span>
             </button>
           </div>
         </header>
@@ -346,6 +358,13 @@ export const RolePortalLayout = ({
           </div>
         </main>
       </div>
+
+      {/* User Profile & Audit History Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        user={user}
+      />
     </div>
   );
 };
