@@ -1,38 +1,113 @@
-import React from 'react';
-import { Card } from '../../components/ui/Card';
-import { FileText, Download, ShieldCheck, Clock, Calendar, Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { DataTable } from '../../components/ui/DataTable';
+import { generateScrutinyPDF } from '../../lib/pdfGenerator';
+import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ShieldCheck, Info, FileDown } from 'lucide-react';
 
 export const ReportsView = ({ role = 'citizen' }) => {
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+
   const roleTitleMap = {
     citizen: 'Citizen Architectural Reports & History',
     officer: 'Field Officer Inspection Dossiers & Audit Trails',
     admin: 'National Compliance Engine Scrutiny Reports',
   };
 
-  const sampleReports = [
+  // Comprehensive mock submissions with pre-populated scrutiny evaluations for PDF export
+  const [submissions] = useState([
     {
-      id: 'REP-2026-8812',
-      title: 'Structural Sanction Clearance Notice',
-      date: '24 Oct 2026',
+      id: 'APP-2026-1044',
+      timestamp: '2026-10-24T10:30:00Z',
+      title: 'Commercial Complex Phase-2 (G+4)',
+      category: 'Commercial Complex',
+      entity: 'Okhla Industrial Area, Plot 45B',
       status: 'APPROVED',
-      size: '2.4 MB',
+      officer: 'Priya Sharma (Zone IV)',
+      remarks: 'All NBC 2016 building bye-laws satisfied. Digital sanction QR generated.',
+      scrutinyReport: {
+        summary: 'All NBC 2016 building bye-laws satisfied. Digital sanction QR generated.',
+        evaluations: [
+          { rule_code: 'BL-001', parameter: 'Rear Setback Buffer', expected: '>= 3.0m', actual: '4.2m', passed: true, status: 'PASSED' },
+          { rule_code: 'BL-002', parameter: 'Maximum Ground Coverage', expected: '<= 50.0%', actual: '44.5%', passed: true, status: 'PASSED' },
+          { rule_code: 'BL-003', parameter: 'Permissible Building Height', expected: '<= 15.0m', actual: '12.0m', passed: true, status: 'PASSED' },
+          { rule_code: 'BL-004', parameter: 'Emergency Fire Staircase Width', expected: '>= 1.50m', actual: '1.50m', passed: true, status: 'PASSED' },
+        ],
+      },
     },
     {
-      id: 'REP-2026-7734',
-      title: 'Setback Deficiency & Rectification Order',
-      date: '22 Oct 2026',
+      id: 'APP-2026-0891',
+      timestamp: '2026-10-18T14:15:00Z',
+      title: 'Residential Villa Sanction Plan (G+2)',
+      category: 'Residential - Plotted',
+      entity: 'Sector 14, Dwarka, Plot 12',
+      status: 'APPROVED',
+      officer: 'Sanjay Rawat (Zone II)',
+      remarks: 'All setbacks and ground coverage compliant with Delhi Unified Bye-Laws.',
+      scrutinyReport: {
+        summary: 'All setbacks and ground coverage compliant with Delhi Unified Bye-Laws.',
+        evaluations: [
+          { rule_code: 'BL-001', parameter: 'Rear Setback Buffer', expected: '>= 3.0m', actual: '4.0m', passed: true, status: 'PASSED' },
+          { rule_code: 'BL-002', parameter: 'Maximum Ground Coverage', expected: '<= 50.0%', actual: '45.0%', passed: true, status: 'PASSED' },
+          { rule_code: 'BL-003', parameter: 'Building Height Limit', expected: '<= 12.0m', actual: '10.0m', passed: true, status: 'PASSED' },
+        ],
+      },
+    },
+    {
+      id: 'APP-2026-0730',
+      timestamp: '2026-10-12T09:00:00Z',
+      title: 'Office Warehouse Annex Expansion',
+      category: 'Industrial & Warehouse',
+      entity: 'Narela Phase 1, Plot 7',
       status: 'REJECTED',
-      size: '1.8 MB',
+      officer: 'Priya Sharma (Zone IV)',
+      remarks: 'Deficiency: Ground coverage (65%) exceeds 50% threshold limit and rear setback is deficient.',
+      scrutinyReport: {
+        summary: 'Deficiency: Ground coverage (65%) exceeds 50% threshold limit and rear setback is deficient.',
+        evaluations: [
+          { rule_code: 'BL-001', parameter: 'Rear Setback Buffer', expected: '>= 3.0m', actual: '2.0m', passed: false, status: 'VIOLATION' },
+          { rule_code: 'BL-002', parameter: 'Maximum Ground Coverage', expected: '<= 50.0%', actual: '65.0%', passed: false, status: 'VIOLATION' },
+          { rule_code: 'BL-003', parameter: 'Floor Area Ratio (FAR)', expected: '<= 2.00', actual: '1.85', passed: true, status: 'PASSED' },
+        ],
+      },
     },
     {
-      id: 'REP-2026-6541',
-      title: 'Periodic Bye-Law Automated Audit Summary',
-      date: '18 Oct 2026',
-      status: 'COMPLIANT',
-      size: '3.1 MB',
+      id: 'APP-2026-0988',
+      timestamp: '2026-10-22T11:40:00Z',
+      title: 'Mixed-Use Retail & Residential Hub',
+      category: 'Mixed-Use Commercial',
+      entity: 'Sector 22, Rohini, Plot 8',
+      status: 'PENDING',
+      officer: 'Amit Verma (Enforcement)',
+      remarks: 'Automated AI scrutiny complete; awaiting officer field verification signoff.',
+      scrutinyReport: {
+        summary: 'Automated AI scrutiny complete; awaiting officer field verification signoff.',
+        evaluations: [
+          { rule_code: 'BL-001', parameter: 'Rear Setback Buffer', expected: '>= 3.0m', actual: '3.5m', passed: true, status: 'PASSED' },
+          { rule_code: 'BL-002', parameter: 'Maximum Ground Coverage', expected: '<= 50.0%', actual: '48.0%', passed: true, status: 'PASSED' },
+        ],
+      },
     },
-  ];
+    {
+      id: 'APP-2026-1215',
+      timestamp: '2026-10-23T16:00:00Z',
+      title: 'Institutional Educational Annex (G+3)',
+      category: 'Institutional / Educational',
+      entity: 'Vasant Kunj Institutional Area',
+      status: 'APPROVED',
+      officer: 'Sanjay Rawat (Zone II)',
+      remarks: 'Clearance granted with digital sanction verification seal.',
+      scrutinyReport: {
+        summary: 'Clearance granted with digital sanction verification seal.',
+        evaluations: [
+          { rule_code: 'BL-001', parameter: 'Rear Setback Buffer', expected: '>= 3.0m', actual: '4.5m', passed: true, status: 'PASSED' },
+          { rule_code: 'BL-002', parameter: 'Maximum Ground Coverage', expected: '<= 50.0%', actual: '38.0%', passed: true, status: 'PASSED' },
+          { rule_code: 'BL-004', parameter: 'Emergency Fire Exit Staircase Width', expected: '>= 1.50m', actual: '1.80m', passed: true, status: 'PASSED' },
+        ],
+      },
+    },
+  ]);
 
   return (
     <div className="space-y-6 fade-in">
@@ -40,7 +115,7 @@ export const ReportsView = ({ role = 'citizen' }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-navy-900 tracking-tight">
-            Reports & History
+            My Submissions & Reports
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
             {roleTitleMap[role] || 'Historical building plan scrutiny reports, audit logs, and compliance documentation.'}
@@ -54,77 +129,74 @@ export const ReportsView = ({ role = 'citizen' }) => {
         </div>
       </div>
 
-      {/* Main GovTech Card */}
-      <Card padding="lg" className="border-t-4 border-t-primary-600">
-        <div className="flex items-center justify-between pb-5 border-b border-slate-100 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center">
-              <FileText size={20} />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-navy-900">Archived Compliance Dossiers</h2>
-              <p className="text-xs text-slate-400">All reports are timestamped and digitally signed</p>
-            </div>
-          </div>
-          <div className="relative hidden sm:block">
-            <input
-              type="text"
-              placeholder="Filter by report ID or title..."
-              className="text-xs bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-            />
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          </div>
-        </div>
+      {/* Functional DataTable with instant PDF export */}
+      <div className="space-y-3">
+        <DataTable
+          title="Submission History & Official Notices"
+          data={submissions}
+          onViewDetails={(row) => setSelectedSubmission(row)}
+          onExportRow={(row) => generateScrutinyPDF(row, row.scrutinyReport)}
+        />
+      </div>
 
-        {/* Reports List */}
-        <div className="space-y-3">
-          {sampleReports.map((report) => (
-            <div
-              key={report.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-primary-300 hover:bg-primary-50/20 transition-all gap-3"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-                  <FileText size={16} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-navy-900">{report.title}</h4>
-                  <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-400">
-                    <span className="font-mono text-slate-600">{report.id}</span>
-                    <span>&bull;</span>
-                    <span className="flex items-center gap-1">
-                      <Calendar size={12} />
-                      {report.date}
-                    </span>
-                    <span>&bull;</span>
-                    <span>{report.size}</span>
-                  </div>
-                </div>
+      {/* Record Inspection Modal */}
+      {selectedSubmission && (
+        <Modal
+          isOpen={!!selectedSubmission}
+          onClose={() => setSelectedSubmission(null)}
+          title={`Application Details - ${selectedSubmission.id}`}
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<FileDown size={14} />}
+                onClick={() => {
+                  generateScrutinyPDF(selectedSubmission, selectedSubmission.scrutinyReport);
+                }}
+              >
+                Download PDF Notice
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedSubmission(null)}>
+                Close
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h4 className="text-sm font-bold text-navy-900">{selectedSubmission.title}</h4>
+                <p className="text-xs text-slate-500 mt-0.5">{selectedSubmission.entity}</p>
               </div>
+              <StatusBadge status={selectedSubmission.status} />
+            </div>
 
-              <div className="flex items-center gap-3 self-end sm:self-center">
-                <span
-                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                    report.status === 'APPROVED' || report.status === 'COMPLIANT'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}
-                >
-                  {report.status}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-slate-50">
+                <span className="text-slate-400 block font-medium">Category</span>
+                <span className="font-semibold text-navy-900 mt-0.5 block">
+                  {selectedSubmission.category}
                 </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  icon={<Download size={13} />}
-                  onClick={() => alert(`Downloading archived report ${report.id}...`)}
-                >
-                  Download
-                </Button>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50">
+                <span className="text-slate-400 block font-medium">Assigned Officer</span>
+                <span className="font-semibold text-navy-900 mt-0.5 block">
+                  {selectedSubmission.officer}
+                </span>
               </div>
             </div>
-          ))}
-        </div>
-      </Card>
+
+            <div className="p-3.5 rounded-xl bg-primary-50/60 border border-primary-100 text-xs text-navy-800">
+              <span className="font-bold flex items-center gap-1.5 text-primary-800 mb-1">
+                <Info size={14} />
+                Compliance Remarks
+              </span>
+              <p>{selectedSubmission.remarks || 'Scrutiny engine verification complete.'}</p>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
