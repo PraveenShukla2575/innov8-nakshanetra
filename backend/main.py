@@ -1,10 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import os
 
 from database import engine, Base, get_db
 import models
+import schemas
 
 app = FastAPI(
     title="NakshaNetra API",
@@ -36,6 +38,7 @@ def read_root():
         "status": "operational",
         "health_check": "/api/health",
         "setup_endpoint": "/api/setup",
+        "docs": "/docs",
     }
 
 
@@ -109,10 +112,84 @@ def setup_database(db: Session = Depends(get_db)):
         )
 
 
-@app.get("/api/users")
+@app.get("/api/users", response_model=List[schemas.UserResponse])
 def get_users(db: Session = Depends(get_db)):
-    users = db.query(models.User).all()
-    return [{"id": u.id, "name": u.name, "role": u.role} for u in users]
+    """
+    Returns all registered users to populate the Role Switcher dropdown.
+    """
+    return db.query(models.User).all()
+
+
+@app.get("/api/applications", response_model=List[schemas.ApplicationResponse])
+def get_applications(
+    user_id: int = Query(..., description="ID of the user requesting applications"),
+    role: str = Query(..., description="Role of the user: citizen, officer, or admin"),
+    db: Session = Depends(get_db),
+):
+    """
+    Fetches the application queue dynamically based on role:
+    - citizen: returns applications submitted by citizen_id == user_id
+    - officer: returns applications where status == 'pending_officer'
+    - admin: returns applications where status == 'pending_admin'
+    """
+    normalized_role = role.strip().lower()
+
+    if normalized_role == "citizen":
+        return (
+            db.query(models.Application)
+            .filter(models.Application.citizen_id == user_id)
+            .all()
+        )
+    elif normalized_role == "officer":
+        return (
+            db.query(models.Application)
+            .filter(models.Application.status == "pending_officer")
+            .all()
+        )
+    elif normalized_role == "admin":
+        return (
+            db.query(models.Application)
+            .filter(models.Application.status == "pending_admin")
+            .all()
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role '{role}'. Expected 'citizen', 'officer', or 'admin'.",
+        )
+
+
+@app.post(
+    "/api/applications",
+    response_model=schemas.ApplicationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_application(
+    app_in: schemas.ApplicationCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Stub route that accepts citizen_id and pdf_url,
+    creates a new Application with status='pending_officer', and returns it.
+    """
+    # Verify citizen exists
+    citizen = db.query(models.User).filter(models.User.id == app_in.citizen_id).first()
+    if not citizen:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {app_in.citizen_id} not found",
+        )
+
+    new_application = models.Application(
+        citizen_id=app_in.citizen_id,
+        pdf_url=app_in.pdf_url,
+        status="pending_officer",
+        officer_id=None,
+    )
+    db.add(new_application)
+    db.commit()
+    db.refresh(new_application)
+    return new_application
 
 
 @app.get("/api/rules")
