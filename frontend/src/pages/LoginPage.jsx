@@ -151,13 +151,13 @@ export const LoginPage = () => {
 
         {/* Top: Branding & Subtitle */}
         <div className="relative z-10">
-          <div className="flex items-center gap-3.5">
-            <div className="w-13 h-13 rounded-2xl bg-white/10 p-2 border border-white/15 backdrop-blur-md flex items-center justify-center shadow-xl shadow-black/30">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-white/10 p-2 border border-white/15 backdrop-blur-md flex items-center justify-center shadow-xl shadow-black/30 shrink-0">
               <img src={logo} alt="NakshaNetra Logo" className="w-full h-full object-contain" />
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black tracking-tight text-white">NakshaNetra</span>
-            </div>
+            <span className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white">
+              NakshaNetra
+            </span>
           </div>
 
           <p className="mt-5 text-sm sm:text-base text-slate-300 leading-relaxed max-w-lg font-normal">
