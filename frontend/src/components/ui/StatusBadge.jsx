@@ -30,7 +30,28 @@ const statusConfig = {
     text: 'text-red-700',
     ring: 'ring-red-500/20',
   },
+  PASSED: {
+    label: 'Passed',
+    icon: CheckCircle2,
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-700',
+    ring: 'ring-emerald-500/20',
+  },
+  VIOLATION: {
+    label: 'Violation',
+    icon: XCircle,
+    bg: 'bg-red-50',
+    text: 'text-red-700',
+    ring: 'ring-red-500/20',
+  },
   PENDING: {
+    label: 'Pending Review',
+    icon: Clock,
+    bg: 'bg-amber-50',
+    text: 'text-amber-700',
+    ring: 'ring-amber-500/20',
+  },
+  PENDING_REVIEW: {
     label: 'Pending Review',
     icon: Clock,
     bg: 'bg-amber-50',

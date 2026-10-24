@@ -11,6 +11,8 @@ __pycache__/
 *$py.class
 *.so
 .Python
+backend/uploads/*
+!backend/uploads/.gitkeep
 
 # Python Virtual Environments
 venv/

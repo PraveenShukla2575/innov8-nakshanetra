@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import logo from '../../assets/logo.png';
 import {
   LogOut,
   ChevronLeft,
@@ -125,16 +126,20 @@ export const RolePortalLayout = ({
       >
         {/* Brand Header */}
         <div
-          className={`flex items-center py-3 px-4 border-b border-slate-200 ${
-            sidebarCollapsed ? 'justify-center h-20' : 'gap-3.5 h-20'
+          className={`flex items-center border-b border-slate-200 transition-all duration-200 ${
+            sidebarCollapsed ? 'justify-center px-2 h-20' : 'gap-3.5 px-4 h-20'
           }`}
         >
-          <div className="w-10 h-10 rounded-xl bg-primary-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-primary-600/30">
-            <Building2 size={22} />
-          </div>
+          <img
+            src={logo}
+            alt="NakshaNetra Logo"
+            className={`${
+              sidebarCollapsed ? 'h-12 w-12' : 'h-16 w-16'
+            } object-contain shrink-0 transition-all duration-200 drop-shadow-xs`}
+          />
           {!sidebarCollapsed && (
             <div className="min-w-0 flex-1">
-              <p className="text-lg font-extrabold leading-none text-navy-900 truncate">
+              <p className="text-xl font-black tracking-tight leading-tight text-navy-900 truncate">
                 Naksha<span className="text-primary-600">Netra</span>
               </p>
               <div className="mt-1 flex items-center gap-1.5">

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import axios from 'axios';
 import {
   Upload,
   X,
@@ -10,12 +11,19 @@ import {
   FileUp,
   AlertCircle,
   CheckCircle,
+  Loader2,
+  Sparkles,
+  Image as ImageIcon,
+  Check,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
 const CATEGORY_OPTIONS = [
   'Residential - Plotted Housing',
   'Commercial Complex',
@@ -31,13 +39,15 @@ const PLAN_TYPE_OPTIONS = [
   'Full Structural / Sanction Set',
 ];
 
-export const UploadZone = ({ onAnalyze = () => {} }) => {
-  const [pdfFiles, setPdfFiles] = useState([]);
+export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
+  const [stagedFiles, setStagedFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [category, setCategory] = useState(CATEGORY_OPTIONS[0]);
   const [trackingId, setTrackingId] = useState('');
   const [zone, setZone] = useState('');
   const [error, setError] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanStage, setScanStage] = useState(''); // Live step message
   const fileInputRef = useRef(null);
 
   const formatFileSize = (bytes) => {
@@ -48,43 +58,55 @@ export const UploadZone = ({ onAnalyze = () => {} }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const isSupportedFile = (file) => {
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    return (
+      ALLOWED_EXTENSIONS.includes(ext) ||
+      file.type === 'application/pdf' ||
+      file.type.startsWith('image/')
+    );
+  };
+
   const processFiles = useCallback(
     (fileList) => {
       const files = Array.from(fileList);
-      const validPdfs = files.filter(
-        (f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
-      );
+      const validFiles = files.filter(isSupportedFile);
 
-      if (validPdfs.length === 0) {
-        setError('Please upload valid building plan PDF files (.pdf).');
+      if (validFiles.length === 0) {
+        setError('Please upload a valid building plan document (.pdf, .jpg, .jpeg, or .png).');
         return;
       }
 
       // Check size limit (15MB)
-      const oversized = validPdfs.find((f) => f.size > MAX_FILE_SIZE);
+      const oversized = validFiles.find((f) => f.size > MAX_FILE_SIZE);
       if (oversized) {
         setError(`"${oversized.name}" exceeds the 15MB limit. Please upload files under 15MB.`);
         return;
       }
 
-      const remaining = MAX_FILES - pdfFiles.length;
+      const remaining = MAX_FILES - stagedFiles.length;
       if (remaining <= 0) {
-        setError(`Maximum ${MAX_FILES} Naksha PDFs allowed per submission.`);
+        setError(`Maximum ${MAX_FILES} building plans allowed per submission.`);
         return;
       }
 
-      const toAdd = validPdfs.slice(0, remaining).map((file, i) => ({
-        id: `pdf_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        file,
-        name: file.name,
-        size: formatFileSize(file.size),
-        planType: PLAN_TYPE_OPTIONS[(pdfFiles.length + i) % PLAN_TYPE_OPTIONS.length],
-      }));
+      const toAdd = validFiles.slice(0, remaining).map((file, i) => {
+        const isImg = file.type.startsWith('image/') || /\.(jpg|jpeg|png)$/i.test(file.name);
+        return {
+          id: `plan_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          file,
+          name: file.name,
+          size: formatFileSize(file.size),
+          isImage: isImg,
+          previewUrl: isImg ? URL.createObjectURL(file) : null,
+          planType: PLAN_TYPE_OPTIONS[(stagedFiles.length + i) % PLAN_TYPE_OPTIONS.length],
+        };
+      });
 
-      setPdfFiles((prev) => [...prev, ...toAdd]);
+      setStagedFiles((prev) => [...prev, ...toAdd]);
       setError(null);
     },
-    [pdfFiles.length]
+    [stagedFiles.length]
   );
 
   const handleDragOver = (e) => {
@@ -106,33 +128,130 @@ export const UploadZone = ({ onAnalyze = () => {} }) => {
     processFiles(e.dataTransfer.files);
   };
 
-  const removePdf = (id) => {
-    setPdfFiles((prev) => prev.filter((p) => p.id !== id));
+  const removeFile = (id) => {
+    setStagedFiles((prev) => {
+      const removed = prev.find((p) => p.id === id);
+      if (removed?.previewUrl) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
+      return prev.filter((p) => p.id !== id);
+    });
   };
 
   const updatePlanType = (id, planType) => {
-    setPdfFiles((prev) =>
+    setStagedFiles((prev) =>
       prev.map((pdf) => (pdf.id === id ? { ...pdf, planType } : pdf))
     );
   };
 
-  const handleSubmit = () => {
-    if (pdfFiles.length === 0) return;
-    onAnalyze({ files: pdfFiles, category, trackingId, zone });
+  // 1-Click Load Pre-generated Demo Test Plans
+  const loadDemoPlan = async (filename, label) => {
+    try {
+      setError(null);
+      const res = await fetch(`/test_plans/${filename}`);
+      if (!res.ok) {
+        throw new Error(`Failed to load ${filename} from public assets`);
+      }
+      const blob = await res.blob();
+      const demoFile = new File([blob], filename, { type: 'image/jpeg' });
+      processFiles([demoFile]);
+    } catch (err) {
+      setError(`Could not load demo asset: ${err.message}`);
+    }
+  };
+
+  // Submit actual file to FastAPI Backend
+  const handleExecuteVerification = async () => {
+    if (stagedFiles.length === 0) return;
+    setError(null);
+    setIsScanning(true);
+    setScanStage('Transmitting architectural blueprint to GovTech Compliance Engine...');
+
+    try {
+      const targetFileObj = stagedFiles[0].file;
+      const formData = new FormData();
+      formData.append('file', targetFileObj);
+      formData.append('citizen_id', '1');
+
+      // Update animated stage message
+      setTimeout(() => {
+        setScanStage('Gemini Multimodal AI Vision extracting architectural dimensions (rear setback, ground coverage)...');
+      }, 900);
+
+      setTimeout(() => {
+        setScanStage('Deterministic Bye-Law Engine evaluating against municipal codes (BL-001, BL-002)...');
+      }, 2500);
+
+      const response = await axios.post(
+        'http://localhost:8000/api/applications/upload',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: 45000,
+        }
+      );
+
+      setScanStage('Compliance scrutiny report generated successfully!');
+      setTimeout(() => {
+        setIsScanning(false);
+        onScrutinyComplete({
+          application: response.data,
+          category,
+          trackingId: trackingId || `APP-2026-${response.data.id || '9812'}`,
+          zone: zone || 'Delhi Municipal Corporation - Ward 14',
+          uploadedFileName: targetFileObj.name,
+        });
+      }, 600);
+    } catch (err) {
+      console.error('Scrutiny upload failed:', err);
+      setIsScanning(false);
+      const detailMsg =
+        err.response?.data?.detail ||
+        err.message ||
+        'Failed to connect to backend scrutiny engine.';
+      setError(`Scrutiny Error: ${detailMsg}`);
+    }
   };
 
   return (
     <div className="space-y-6 fade-in">
       {/* Upload Zone Header */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-50 text-primary-600">
-          <FileUp size={22} />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-50 text-primary-600">
+            <FileUp size={22} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-navy-900">Upload Building Plan (Naksha)</h2>
+            <p className="text-xs text-slate-500">
+              Upload PDF or JPG/PNG blueprints for Gemini AI & Bye-Law compliance verification
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-navy-900">Upload Building Plan (Naksha)</h2>
-          <p className="text-xs text-slate-500">
-            Upload Naksha PDF (Max 15MB) for automated bye-law compliance evaluation
-          </p>
+
+        {/* Quick Demo Test Plans Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden md:inline">
+            Quick Test:
+          </span>
+          <button
+            type="button"
+            onClick={() => loadDemoPlan('plan1_compliant.jpg', 'Plan 1')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-sm"
+          >
+            <ShieldCheck size={14} className="text-emerald-600" />
+            Plan 1 (Compliant)
+          </button>
+          <button
+            type="button"
+            onClick={() => loadDemoPlan('plan2_violation.jpg', 'Plan 2')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors shadow-sm"
+          >
+            <AlertTriangle size={14} className="text-red-600" />
+            Plan 2 (Violation)
+          </button>
         </div>
       </div>
 
@@ -143,27 +262,27 @@ export const UploadZone = ({ onAnalyze = () => {} }) => {
           className={`
             relative flex flex-col items-center justify-center
             border-2 border-dashed rounded-xl cursor-pointer
-            transition-all duration-200 p-10 overflow-hidden
+            transition-all duration-200 p-8 sm:p-10 overflow-hidden
             ${
               dragActive
                 ? 'drop-zone-active'
-                : 'border-slate-300 hover:border-primary-400 hover:bg-primary-50/30'
+                : 'border-slate-300 hover:border-primary-400 hover:bg-primary-50/20'
             }
-            ${pdfFiles.length >= MAX_FILES ? 'opacity-50 pointer-events-none' : ''}
+            ${stagedFiles.length >= MAX_FILES || isScanning ? 'opacity-60 pointer-events-none' : ''}
           `}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => !isScanning && fileInputRef.current?.click()}
         >
-          {/* Laser Scan animation on drag */}
-          {dragActive && <div className="laser-line" />}
+          {/* Laser Scan animation on drag or scanning */}
+          {(dragActive || isScanning) && <div className="laser-line" />}
 
           <input
             ref={fileInputRef}
             type="file"
             multiple
-            accept="application/pdf"
+            accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf"
             className="hidden"
             onChange={(e) => {
               if (e.target.files) {
@@ -172,96 +291,127 @@ export const UploadZone = ({ onAnalyze = () => {} }) => {
               }
             }}
           />
+
           <div
             className={`
               flex items-center justify-center w-16 h-16 rounded-2xl mb-4 transition-colors duration-200
-              ${dragActive ? 'bg-primary-100' : 'bg-slate-100'}
+              ${dragActive || isScanning ? 'bg-primary-100 text-primary-600' : 'bg-slate-100 text-slate-400'}
             `}
           >
-            <Upload
-              size={28}
-              className={`transition-colors duration-200 ${
-                dragActive ? 'text-primary-600' : 'text-slate-400'
-              }`}
-            />
+            {isScanning ? (
+              <Loader2 size={30} className="animate-spin text-primary-600" />
+            ) : (
+              <Upload size={28} />
+            )}
           </div>
-          <p className="text-sm font-semibold text-navy-800 mb-1">
-            {dragActive ? 'Release to upload Naksha PDF' : 'Drag & drop Naksha PDF files here'}
+
+          <p className="text-sm font-semibold text-navy-800 mb-1 text-center">
+            {isScanning
+              ? 'Analyzing Building Plan with Gemini Multimodal AI...'
+              : dragActive
+              ? 'Release to upload Naksha'
+              : 'Drag & drop Naksha blueprint here, or click to browse'}
           </p>
-          <p className="text-xs text-slate-400 mb-4">
-            Supports PDF blueprints & building drawings (up to 15MB each)
+          <p className="text-xs text-slate-400 mb-4 text-center">
+            Supports PDF, JPG, and PNG building plan drawings (up to 15MB each)
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-all shadow-sm shadow-primary-600/20"
-              onClick={(e) => {
-                e.stopPropagation();
-                fileInputRef.current?.click();
-              }}
-            >
-              <FileUp size={16} />
-              Browse Naksha PDF
-            </button>
-          </div>
+
+          {!isScanning && (
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-all shadow-sm shadow-primary-600/20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+              >
+                <FileUp size={16} />
+                Browse Building Plan
+              </button>
+            </div>
+          )}
+
           <p className="text-[11px] text-slate-400 mt-3 font-medium">
-            {pdfFiles.length} / {MAX_FILES} uploaded
+            {stagedFiles.length} / {MAX_FILES} staged
           </p>
         </div>
       </Card>
 
-      {/* Error message */}
-      {error && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
-          <AlertCircle size={16} />
-          {error}
+      {/* Live Scanning Progress Overlay / Banner */}
+      {isScanning && (
+        <div className="p-4 rounded-xl bg-gradient-to-r from-primary-900 via-navy-900 to-indigo-950 text-white shadow-lg border border-primary-500/30 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary-500/20 border border-primary-400/40 text-primary-300">
+              <Sparkles size={18} className="animate-spin" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary-300">
+                Core Compliance Engine Active
+              </p>
+              <p className="text-sm font-medium text-slate-100 mt-0.5 truncate">{scanStage}</p>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* PDF Files List / Preview Grid */}
-      {pdfFiles.length > 0 && (
+      {/* Error message */}
+      {error && (
+        <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+          <AlertCircle size={16} className="shrink-0 text-red-600" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Staged Files List / Preview Grid */}
+      {stagedFiles.length > 0 && (
         <Card padding="md">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CheckCircle size={16} className="text-emerald-500" />
-              <h3 className="text-sm font-bold text-navy-900">Staged Naksha Documents</h3>
+              <h3 className="text-sm font-bold text-navy-900">Staged Naksha Blueprint</h3>
             </div>
             <span className="text-xs text-slate-400 font-medium">
-              {pdfFiles.length} document{pdfFiles.length !== 1 ? 's' : ''} ready
+              {stagedFiles.length} document{stagedFiles.length !== 1 ? 's' : ''} ready
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pdfFiles.map((pdf) => (
+            {stagedFiles.map((item) => (
               <div
-                key={pdf.id}
+                key={item.id}
                 className="group relative bg-slate-50 rounded-xl border border-slate-200 overflow-hidden hover:border-primary-300 transition-all duration-200 p-4"
               >
-                {/* Laser scan line on file card hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                  <div className="laser-line" />
-                </div>
-
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-red-50 text-red-600 shrink-0 border border-red-100">
-                      <FileText size={20} />
-                    </div>
+                    {item.isImage && item.previewUrl ? (
+                      <img
+                        src={item.previewUrl}
+                        alt="Naksha thumbnail"
+                        className="w-12 h-12 object-cover rounded-lg border border-slate-200 shrink-0"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-red-50 text-red-600 shrink-0 border border-red-100">
+                        <FileText size={22} />
+                      </div>
+                    )}
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-navy-900 truncate" title={pdf.name}>
-                        {pdf.name}
+                      <p className="text-xs font-bold text-navy-900 truncate" title={item.name}>
+                        {item.name}
                       </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{pdf.size}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{item.size}</p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removePdf(pdf.id)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
-                    title="Remove File"
-                  >
-                    <X size={15} />
-                  </button>
+                  {!isScanning && (
+                    <button
+                      type="button"
+                      onClick={() => removeFile(item.id)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
+                      title="Remove File"
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Plan Type Selector */}
@@ -270,8 +420,9 @@ export const UploadZone = ({ onAnalyze = () => {} }) => {
                     Drawing Classification
                   </label>
                   <select
-                    value={pdf.planType}
-                    onChange={(e) => updatePlanType(pdf.id, e.target.value)}
+                    value={item.planType}
+                    disabled={isScanning}
+                    onChange={(e) => updatePlanType(item.id, e.target.value)}
                     className="w-full text-xs font-medium text-navy-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                   >
                     {PLAN_TYPE_OPTIONS.map((opt) => (
@@ -300,6 +451,7 @@ export const UploadZone = ({ onAnalyze = () => {} }) => {
             </label>
             <select
               value={category}
+              disabled={isScanning}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full text-sm text-navy-800 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             >
@@ -317,6 +469,7 @@ export const UploadZone = ({ onAnalyze = () => {} }) => {
             <div className="relative">
               <input
                 type="text"
+                disabled={isScanning}
                 value={trackingId}
                 onChange={(e) => setTrackingId(e.target.value)}
                 placeholder="e.g. NAKSHA-2026-9812"
@@ -332,6 +485,7 @@ export const UploadZone = ({ onAnalyze = () => {} }) => {
             <div className="relative">
               <input
                 type="text"
+                disabled={isScanning}
                 value={zone}
                 onChange={(e) => setZone(e.target.value)}
                 placeholder="e.g. North Delhi Zone - Ward 14"
@@ -343,15 +497,15 @@ export const UploadZone = ({ onAnalyze = () => {} }) => {
         </div>
       </Card>
 
-      {/* Action CTA */}
+      {/* Action CTA: Execute Verification Check */}
       <div className="flex justify-end">
         <Button
           size="lg"
-          icon={<ScanLine size={18} />}
-          disabled={pdfFiles.length === 0}
-          onClick={handleSubmit}
+          icon={isScanning ? <Loader2 size={18} className="animate-spin" /> : <ScanLine size={18} />}
+          disabled={stagedFiles.length === 0 || isScanning}
+          onClick={handleExecuteVerification}
         >
-          Execute Compliance Scrutiny
+          {isScanning ? 'Executing Compliance Scrutiny...' : 'Execute Compliance Scrutiny'}
         </Button>
       </div>
     </div>
