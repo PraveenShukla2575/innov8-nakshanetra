@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button';
 import { DataTable } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 
 export const AdminDashboard = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -162,9 +163,7 @@ export const AdminDashboard = () => {
           title="System Audit & Enforcement Log"
           data={auditRecords}
           onViewDetails={(row) => setSelectedRecord(row)}
-          onExportRow={(row) =>
-            alert(`Generating Full System Trace for Audit Event ${row.id}...`)
-          }
+          onExportRow={(row) => generateScrutinyPDF(row)}
         />
       </div>
 

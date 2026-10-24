@@ -22,6 +22,7 @@ import { DataTable } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { UploadZone } from '../../components/scanner/UploadZone';
+import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 
 export const CitizenDashboard = () => {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -268,7 +269,7 @@ export const CitizenDashboard = () => {
                     size="md"
                     className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
                     icon={<Download size={16} />}
-                    onClick={() => alert(`Downloading Sanction QR Certificate for ${activeReport.appId}...`)}
+                    onClick={() => generateScrutinyPDF(activeReport, activeReport)}
                   >
                     Sanction Certificate
                   </Button>
@@ -418,9 +419,7 @@ export const CitizenDashboard = () => {
           title="Citizen Submission History"
           data={submissions}
           onViewDetails={(row) => setSelectedSubmission(row)}
-          onExportRow={(row) =>
-            alert(`Generating Official Compliance Notice for ${row.id}...`)
-          }
+          onExportRow={(row) => generateScrutinyPDF(row, row.reportData)}
         />
       </div>
 

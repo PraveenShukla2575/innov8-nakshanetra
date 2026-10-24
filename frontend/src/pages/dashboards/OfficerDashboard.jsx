@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button';
 import { DataTable } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 
 export const OfficerDashboard = () => {
   const [selectedApp, setSelectedApp] = useState(null);
@@ -213,9 +214,17 @@ export const OfficerDashboard = () => {
           title="Field Officer Scrutiny Roster"
           data={applications}
           onViewDetails={(row) => setSelectedApp(row)}
-          onExportRow={(row) =>
-            alert(`Exporting Officer Inspection Dossier for ${row.id}...`)
-          }
+          onExportRow={(row) => {
+            const evaluations = row.violations?.map((v) => ({
+              rule_code: v.code,
+              title: v.rule,
+              actual: v.actual,
+              expected: v.required,
+              passed: v.severity === 'Compliant',
+              status: v.severity === 'Compliant' ? 'PASSED' : 'VIOLATION',
+            }));
+            generateScrutinyPDF(row, { evaluations });
+          }}
         />
       </div>
 
