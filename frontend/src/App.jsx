@@ -37,8 +37,13 @@ export const adminNavItems = [
   { path: '/admin/settings', label: 'System Settings', icon: Settings },
 ];
 
-// Helper wrapper to provide navigation and backend status props into RolePortalLayout
-function PortalLayoutWrapper({ backendStatus, backendMessage, navItems }) {
+// Distinct mock user profiles per role
+export const citizenUser = { name: 'Anjali Sharma', role: 'CITIZEN', zone: 'Delhi Resident' };
+export const officerUser = { name: 'Ravi Kumar', role: 'OFFICER', zone: 'South Delhi Division' };
+export const adminUser = { name: 'Priya Desai', role: 'ADMIN', zone: 'Central Command HQ' };
+
+// Helper wrapper to provide navigation, user, and backend status props into RolePortalLayout
+function PortalLayoutWrapper({ backendStatus, backendMessage, navItems, user }) {
   const navigate = useNavigate();
   return (
     <RolePortalLayout
@@ -46,6 +51,7 @@ function PortalLayoutWrapper({ backendStatus, backendMessage, navItems }) {
       backendMessage={backendMessage}
       onLogout={() => navigate('/')}
       navItems={navItems}
+      user={user}
     />
   );
 }
@@ -104,6 +110,7 @@ export default function App() {
               backendStatus={backendStatus}
               backendMessage={backendMessage}
               navItems={citizenNavItems}
+              user={citizenUser}
             />
           }
         >
@@ -122,6 +129,7 @@ export default function App() {
               backendStatus={backendStatus}
               backendMessage={backendMessage}
               navItems={officerNavItems}
+              user={officerUser}
             />
           }
         >
@@ -139,6 +147,7 @@ export default function App() {
               backendStatus={backendStatus}
               backendMessage={backendMessage}
               navItems={adminNavItems}
+              user={adminUser}
             />
           }
         >
