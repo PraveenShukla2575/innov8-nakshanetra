@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import {
   ClipboardList,
   AlertTriangle,
@@ -10,6 +11,8 @@ import {
   Filter,
   Check,
   X,
+  ExternalLink,
+  BookOpen,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -20,6 +23,35 @@ import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 
 export const OfficerDashboard = () => {
   const [selectedApp, setSelectedApp] = useState(null);
+  const [verifyingCode, setVerifyingCode] = useState(null);
+  const [ruleCitations, setRuleCitations] = useState({});
+
+  const handleVerifyRule = async (ruleCode, parameterName) => {
+    setVerifyingCode(ruleCode);
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    try {
+      const response = await axios.post(`${API_BASE}/api/rules/verify-source`, {
+        rule_code: ruleCode,
+        parameter: parameterName,
+      });
+      setRuleCitations((prev) => ({
+        ...prev,
+        [ruleCode]: response.data,
+      }));
+    } catch (err) {
+      console.error('Failed to verify official rule:', err);
+      setRuleCitations((prev) => ({
+        ...prev,
+        [ruleCode]: {
+          citation: `System Note: Could not reach live registry. Fallback standard for ${parameterName} applied.`,
+          url: '#',
+        },
+      }));
+    } finally {
+      setVerifyingCode(null);
+    }
+  };
+
   const [applications, setApplications] = useState([
     {
       id: 'APP-2026-1044',
@@ -269,34 +301,85 @@ export const OfficerDashboard = () => {
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-              <h5 className="text-xs font-bold text-navy-900 uppercase tracking-wider mb-2.5">
-                Rule Engine Scrutiny Checks (NBC 2016)
-              </h5>
-              <div className="space-y-2">
-                {selectedApp.violations?.map((v, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-slate-200 text-xs"
-                  >
-                    <div>
-                      <span className="font-mono font-bold text-primary-700 mr-2">{v.code}</span>
-                      <span className="font-semibold text-navy-900">{v.rule}</span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Measured: <strong className="text-navy-900">{v.actual}</strong> &bull;
-                        Requirement: {v.required}
-                      </p>
-                    </div>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        v.severity === 'Compliant'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
+              <div className="flex items-center justify-between mb-2.5">
+                <h5 className="text-xs font-bold text-navy-900 uppercase tracking-wider">
+                  Rule Engine Scrutiny Checks (NBC 2016 & UBBL)
+                </h5>
+                <span className="text-[11px] text-slate-500">Live Scraper Verification Enabled</span>
+              </div>
+              <div className="space-y-3">
+                {selectedApp.violations?.map((v, i) => {
+                  const citationData = ruleCitations[v.code];
+                  const isVerifying = verifyingCode === v.code;
+                  return (
+                    <div
+                      key={i}
+                      className="p-3 bg-white rounded-xl border border-slate-200 text-xs shadow-xs space-y-2.5"
                     >
-                      {v.severity}
-                    </span>
-                  </div>
-                ))}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded border border-primary-200 text-[11px]">
+                              {v.code}
+                            </span>
+                            <span className="font-semibold text-navy-900 text-sm">{v.rule}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            Measured: <strong className="text-navy-900">{v.actual}</strong> &bull;
+                            Requirement: <span className="font-medium text-slate-700">{v.required}</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 self-start sm:self-center">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              v.severity === 'Compliant'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {v.severity}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            loading={isVerifying}
+                            icon={!isVerifying ? <ShieldCheck size={13} className="text-primary-600" /> : null}
+                            onClick={() => handleVerifyRule(v.code, v.rule)}
+                            className="text-xs py-1 px-2.5 h-7"
+                          >
+                            {isVerifying ? 'Verifying...' : citationData ? 'Re-verify' : 'Verify Official Rule'}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Display scraped citation & verifiable URL if verified */}
+                      {citationData && (
+                        <div className="mt-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200/90 text-[11px] space-y-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-navy-900">
+                            <BookOpen size={13} className="text-primary-600 shrink-0" />
+                            <span>Statutory Regulatory Verification</span>
+                          </div>
+                          <p className="text-slate-700 leading-relaxed font-sans">
+                            {citationData.citation}
+                          </p>
+                          {citationData.url && citationData.url !== '#' && (
+                            <div className="pt-0.5">
+                              <a
+                                href={citationData.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:text-primary-800 hover:underline"
+                              >
+                                <span>View Official Bye-Law Source</span>
+                                <ExternalLink size={11} />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
