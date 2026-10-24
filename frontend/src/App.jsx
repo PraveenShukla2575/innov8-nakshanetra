@@ -1,19 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import {
+  Activity,
+  ShieldCheck,
+  Settings,
+  ClipboardList,
+  FileUp,
+  FileText,
+} from 'lucide-react';
+
 import { RolePortalLayout } from './components/layout/RolePortalLayout';
 import { LoginPage } from './pages/LoginPage';
 import { CitizenDashboard } from './pages/dashboards/CitizenDashboard';
 import { OfficerDashboard } from './pages/dashboards/OfficerDashboard';
 import { AdminDashboard } from './pages/dashboards/AdminDashboard';
+import { ReportsView } from './pages/dashboards/ReportsView';
+import { SettingsView } from './pages/dashboards/SettingsView';
 
-function AuthenticatedPortal({ backendStatus, backendMessage }) {
+// Distinct dynamic nav items matching nested sub-routes per role
+export const citizenNavItems = [
+  { path: '/citizen', label: 'Overview', icon: FileUp },
+  { path: '/citizen/reports', label: 'My Submissions', icon: ShieldCheck, badge: '3' },
+  { path: '/citizen/settings', label: 'Settings', icon: Settings },
+];
+
+export const officerNavItems = [
+  { path: '/officer', label: 'Scrutiny Queue', icon: ClipboardList, badge: '5' },
+  { path: '/officer/reports', label: 'Inspection Dossiers', icon: ShieldCheck },
+  { path: '/officer/settings', label: 'Settings', icon: Settings },
+];
+
+export const adminNavItems = [
+  { path: '/admin', label: 'Platform Telemetry', icon: Activity },
+  { path: '/admin/reports', label: 'Audit Records', icon: ShieldCheck },
+  { path: '/admin/settings', label: 'System Settings', icon: Settings },
+];
+
+// Helper wrapper to provide navigation and backend status props into RolePortalLayout
+function PortalLayoutWrapper({ backendStatus, backendMessage, navItems }) {
   const navigate = useNavigate();
   return (
     <RolePortalLayout
       backendStatus={backendStatus}
       backendMessage={backendMessage}
       onLogout={() => navigate('/')}
+      navItems={navItems}
     />
   );
 }
@@ -64,21 +96,57 @@ export default function App() {
         <Route path="/" element={<LoginPage />} />
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Authenticated Role Portal Routes */}
+        {/* 1. Citizen Portal with Nested Routes */}
         <Route
+          path="/citizen"
           element={
-            <AuthenticatedPortal
+            <PortalLayoutWrapper
               backendStatus={backendStatus}
               backendMessage={backendMessage}
+              navItems={citizenNavItems}
             />
           }
         >
-          <Route path="/citizen" element={<CitizenDashboard />} />
-          <Route path="/citizen/*" element={<CitizenDashboard />} />
-          <Route path="/officer" element={<OfficerDashboard />} />
-          <Route path="/officer/*" element={<OfficerDashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/*" element={<AdminDashboard />} />
+          <Route index element={<CitizenDashboard />} />
+          <Route path="reports" element={<ReportsView role="citizen" />} />
+          <Route path="applications" element={<ReportsView role="citizen" />} />
+          <Route path="settings" element={<SettingsView role="citizen" />} />
+          <Route path="guidelines" element={<SettingsView role="citizen" />} />
+        </Route>
+
+        {/* 2. Officer Portal with Nested Routes */}
+        <Route
+          path="/officer"
+          element={
+            <PortalLayoutWrapper
+              backendStatus={backendStatus}
+              backendMessage={backendMessage}
+              navItems={officerNavItems}
+            />
+          }
+        >
+          <Route index element={<OfficerDashboard />} />
+          <Route path="reports" element={<ReportsView role="officer" />} />
+          <Route path="inspections" element={<ReportsView role="officer" />} />
+          <Route path="settings" element={<SettingsView role="officer" />} />
+        </Route>
+
+        {/* 3. Admin Portal with Nested Routes */}
+        <Route
+          path="/admin"
+          element={
+            <PortalLayoutWrapper
+              backendStatus={backendStatus}
+              backendMessage={backendMessage}
+              navItems={adminNavItems}
+            />
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="reports" element={<ReportsView role="admin" />} />
+          <Route path="audit" element={<ReportsView role="admin" />} />
+          <Route path="settings" element={<SettingsView role="admin" />} />
+          <Route path="rules" element={<SettingsView role="admin" />} />
         </Route>
 
         {/* Fallback route */}

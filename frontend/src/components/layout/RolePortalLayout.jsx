@@ -62,6 +62,7 @@ export const RolePortalLayout = ({
   backendStatus = 'checking',
   backendMessage = '',
   onLogout = () => {},
+  navItems,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -74,6 +75,7 @@ export const RolePortalLayout = ({
     : 'citizen';
 
   const activeConfig = roleProfiles[currentRoleKey];
+  const effectiveNavItems = navItems || activeConfig.navItems;
 
   const [isExpanded, setIsExpanded] = useState(() => {
     const saved = localStorage.getItem('gov_sidebar_expanded');
@@ -88,7 +90,7 @@ export const RolePortalLayout = ({
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const sidebarCollapsed = !isExpanded;
 
-  const currentNav = activeConfig.navItems.find(
+  const currentNav = effectiveNavItems.find(
     (n) => location.pathname === n.path || (n.path !== `/${currentRoleKey}` && location.pathname.startsWith(n.path))
   );
 
@@ -167,7 +169,7 @@ export const RolePortalLayout = ({
         {/* Navigation Items */}
         <nav className="flex-1 py-5 overflow-y-auto">
           <ul className="space-y-1.5 px-3">
-            {activeConfig.navItems.map(({ path, label, icon: Icon, badge }) => (
+            {effectiveNavItems.map(({ path, label, icon: Icon, badge }) => (
               <li key={path}>
                 <NavLink
                   to={path}
