@@ -98,17 +98,20 @@ export const RolePortalLayout = ({
 
   const pageTitle = currentNav?.label ?? activeConfig.portalTitle;
   const effectiveUser = userProp || activeConfig.user;
-  const displayName = effectiveUser.name;
+  const displayName = effectiveUser.full_name || effectiveUser.name || 'User';
   const initials = displayName
     .split(' ')
+    .filter(Boolean)
     .map((n) => n[0])
     .join('')
     .toUpperCase() || 'U';
 
   const user = {
+    ...effectiveUser,
     name: displayName,
+    full_name: displayName,
     role: effectiveUser.role,
-    zone: effectiveUser.zone,
+    zone: effectiveUser.zone || 'Delhi (MCD)',
     email: effectiveUser.email || `${currentRoleKey}@nakshanetra.gov.in`,
     badgeText: effectiveUser.badgeText || activeConfig.badgeText,
     badgeColorClass: effectiveUser.badgeColorClass || activeConfig.badgeColorClass,

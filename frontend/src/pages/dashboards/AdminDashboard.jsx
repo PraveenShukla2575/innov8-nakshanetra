@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Activity,
   ShieldAlert,
@@ -6,10 +7,18 @@ import {
   Database,
   Users,
   CheckCircle,
+  CheckCircle2,
   FileCheck,
   Building,
   Server,
   Zap,
+  UserCheck,
+  RefreshCw,
+  Mail,
+  MapPin,
+  Clock,
+  Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -20,6 +29,48 @@ import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 
 export const AdminDashboard = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
+
+  // Pending officer approval states
+  const [pendingOfficers, setPendingOfficers] = useState([]);
+  const [loadingOfficers, setLoadingOfficers] = useState(false);
+  const [officersError, setOfficersError] = useState(null);
+  const [approvalSuccess, setApprovalSuccess] = useState(null);
+  const [approvingId, setApprovingId] = useState(null);
+
+  const fetchPendingOfficers = async () => {
+    setLoadingOfficers(true);
+    setOfficersError(null);
+    try {
+      const response = await axios.get('http://localhost:8000/api/admin/pending-officers');
+      setPendingOfficers(response.data || []);
+    } catch (err) {
+      setOfficersError(
+        err.response?.data?.detail || err.message || 'Failed to fetch pending officers'
+      );
+    } finally {
+      setLoadingOfficers(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingOfficers();
+  }, []);
+
+  const handleApproveOfficer = async (userId, fullName) => {
+    setApprovingId(userId);
+    try {
+      await axios.patch(`http://localhost:8000/api/admin/approve-officer/${userId}`);
+      setPendingOfficers((prev) => prev.filter((o) => o.id !== userId));
+      setApprovalSuccess(
+        `Officer ${fullName || '#' + userId} has been approved successfully. They may now log in.`
+      );
+      setTimeout(() => setApprovalSuccess(null), 6000);
+    } catch (err) {
+      alert('Approval failed: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
   const auditRecords = [
     {
@@ -88,8 +139,8 @@ export const AdminDashboard = () => {
           </h1>
           <p className="mt-2 text-sm sm:text-base text-slate-300 leading-relaxed">
             Centralized oversight of the NakshaNetra automated compliance engine. Monitor AI
-            computer-vision inferences, National Building Code (NBC) rule evaluations, and zonal
-            officer processing throughput in real-time.
+            computer-vision inferences, National Building Code (NBC) rule evaluations, and officer
+            approval workflows in real-time.
           </p>
         </div>
       </div>
@@ -123,15 +174,17 @@ export const AdminDashboard = () => {
         </Card>
 
         <Card className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <FileCheck size={22} />
+          <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <UserCheck size={22} />
           </div>
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Compliance Rate
+              Pending Officers
             </p>
-            <h3 className="text-2xl font-black text-navy-900 mt-0.5">78.4%</h3>
-            <p className="text-[11px] text-blue-600 font-medium mt-0.5">First-time approval</p>
+            <h3 className="text-2xl font-black text-amber-600 mt-0.5">
+              {pendingOfficers.length}
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">Awaiting Authorization</p>
           </div>
         </Card>
 
@@ -147,6 +200,166 @@ export const AdminDashboard = () => {
             <p className="text-[11px] text-slate-400 mt-0.5">FastAPI & Supabase</p>
           </div>
         </Card>
+      </div>
+
+      {/* ================================================================= */}
+      {/* 2. PENDING OFFICER APPROVALS WORKFLOW SECTION                    */}
+      {/* ================================================================= */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+              <UserCheck size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-navy-900">Pending Officer Approvals</h2>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                  {pendingOfficers.length} Pending
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Review and approve municipal enforcement officers before granting portal scrutiny access.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchPendingOfficers}
+            disabled={loadingOfficers}
+            className="flex items-center gap-1.5 text-xs self-start sm:self-auto cursor-pointer"
+          >
+            <RefreshCw size={13} className={loadingOfficers ? 'animate-spin' : ''} />
+            <span>Refresh Queue</span>
+          </Button>
+        </div>
+
+        {/* Approval Success Banner */}
+        {approvalSuccess && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl p-3.5 flex items-start gap-2.5 animate-fadeIn">
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs font-bold leading-tight">Access Granted</p>
+              <p className="text-xs text-emerald-800 mt-0.5">{approvalSuccess}</p>
+            </div>
+            <button
+              onClick={() => setApprovalSuccess(null)}
+              className="text-emerald-500 hover:text-emerald-700 text-sm font-bold px-1"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
+        {/* Fetch Error Banner */}
+        {officersError && (
+          <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-3 text-xs flex items-center gap-2">
+            <ShieldAlert size={16} className="text-red-600 shrink-0" />
+            <span>{officersError}</span>
+          </div>
+        )}
+
+        {/* Officers Queue Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          {loadingOfficers ? (
+            <div className="p-8 text-center flex flex-col items-center justify-center space-y-2">
+              <Loader2 size={24} className="text-primary-600 animate-spin" />
+              <p className="text-xs text-slate-500 font-medium">Fetching pending registrations...</p>
+            </div>
+          ) : pendingOfficers.length === 0 ? (
+            <div className="p-8 text-center flex flex-col items-center justify-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mb-1">
+                <ShieldCheck size={24} />
+              </div>
+              <h4 className="text-sm font-bold text-navy-900">All Officers Verified</h4>
+              <p className="text-xs text-slate-500 max-w-md">
+                There are currently no officer accounts awaiting administrative approval. When a new
+                enforcement officer registers, their verification ticket will appear here instantly.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                    <th className="py-3 px-4">Officer Profile</th>
+                    <th className="py-3 px-4">Official Email</th>
+                    <th className="py-3 px-4">Municipal Jurisdiction</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Approval Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pendingOfficers.map((officer) => (
+                    <tr key={officer.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-xs shrink-0 border border-blue-200">
+                            {(officer.full_name || officer.name || 'O')
+                              .split(' ')
+                              .filter(Boolean)
+                              .map((n) => n[0])
+                              .join('')
+                              .toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-navy-900 text-xs">
+                              {officer.full_name || officer.name}
+                            </p>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              ID: #{officer.id} • Role: {officer.role}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-600">
+                        <div className="flex items-center gap-1.5">
+                          <Mail size={13} className="text-slate-400 shrink-0" />
+                          <span>{officer.email}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-700">
+                        <div className="flex items-center gap-1.5">
+                          <MapPin size={13} className="text-slate-400 shrink-0" />
+                          <span className="font-medium">{officer.zone || 'Delhi (MCD)'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                          <Clock size={11} />
+                          Pending Review
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleApproveOfficer(officer.id, officer.full_name || officer.name)
+                          }
+                          disabled={approvingId === officer.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg font-bold text-xs shadow-xs transition-all cursor-pointer"
+                        >
+                          {approvingId === officer.id ? (
+                            <>
+                              <Loader2 size={13} className="animate-spin" />
+                              <span>Approving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle size={13} />
+                              <span>Approve Officer</span>
+                            </>
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Overview Telemetry Data Table */}
