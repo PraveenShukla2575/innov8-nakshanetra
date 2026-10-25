@@ -396,7 +396,7 @@ export const CitizenDashboard = () => {
                 {activeReport.fileName}
               </p>
               <a
-                href={`${import.meta.env.VITE_API_URL}${activeReport.pdfUrl}`}
+                href={`http://localhost:8000${activeReport.pdfUrl}`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-[11px] font-semibold text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"

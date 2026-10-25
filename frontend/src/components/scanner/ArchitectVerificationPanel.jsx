@@ -34,8 +34,8 @@ export const ArchitectVerificationPanel = ({ applicationData = {} }) => {
     setError(null);
 
     const API_URL = import.meta.env?.VITE_API_URL
-      ? `${import.meta.env.VITE_API_URL}/api/applications/verify-architect`
-      : `${import.meta.env.VITE_API_URL}/api/applications/verify-architect`;
+      ? `http://localhost:8000/api/applications/verify-architect`
+      : `http://localhost:8000/api/applications/verify-architect`;
 
     try {
       const response = await axios.post(API_URL, {

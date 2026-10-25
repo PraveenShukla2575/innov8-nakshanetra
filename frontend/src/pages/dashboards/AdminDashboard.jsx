@@ -41,7 +41,7 @@ export const AdminDashboard = () => {
     setLoadingOfficers(true);
     setOfficersError(null);
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/admin/pending-officers`);
+      const response = await axios.get(`http://localhost:8000/api/admin/pending-officers`);
       setPendingOfficers(response.data || []);
     } catch (err) {
       setOfficersError(
@@ -59,7 +59,7 @@ export const AdminDashboard = () => {
   const handleApproveOfficer = async (userId, fullName) => {
     setApprovingId(userId);
     try {
-      await axios.patch(`${import.meta.env.VITE_API_URL}/api/admin/approve-officer/${userId}`);
+      await axios.patch(`http://localhost:8000/api/admin/approve-officer/${userId}`);
       setPendingOfficers((prev) => prev.filter((o) => o.id !== userId));
       setApprovalSuccess(
         `Officer ${fullName || '#' + userId} has been approved successfully. They may now log in.`
