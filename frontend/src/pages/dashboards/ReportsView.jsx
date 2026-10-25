@@ -7,6 +7,13 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { ShieldCheck, Info, FileDown } from 'lucide-react';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
 
+const mockArchitects = [
+  { name: "Sunita Reddy", reg: "CA/2018/91234" }, 
+  { name: "Vikram Singh", reg: "CA/2012/55432" }, 
+  { name: "Priya Desai", reg: "CA/2020/12345" }, 
+  { name: "Arjun Nair", reg: "CA/2016/88776" }
+];
+
 export const ReportsView = ({ role = 'citizen' }) => {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
 
@@ -144,7 +151,11 @@ export const ReportsView = ({ role = 'citizen' }) => {
           title="Submission History & Official Notices"
           data={submissions}
           onViewDetails={(row) => {
-            const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
+            const randomArchitect =
+              mockArchitects[Math.floor(Math.random() * mockArchitects.length)] || {
+                name: 'Sunita Reddy',
+                reg: 'CA/2018/91234',
+              };
             setSelectedSubmission({
               ...row,
               architect_name: row.architect_name || randomArchitect.name,

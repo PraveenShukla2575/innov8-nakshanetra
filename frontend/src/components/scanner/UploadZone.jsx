@@ -153,20 +153,19 @@ export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
     setIsScanning(true);
     setScanStage('Transmitting architectural blueprint to GovTech Compliance Engine...');
 
+    const timer1 = setTimeout(() => {
+      setScanStage('Gemini Multimodal AI Vision extracting architectural dimensions (rear setback, ground coverage)...');
+    }, 900);
+
+    const timer2 = setTimeout(() => {
+      setScanStage('Deterministic Bye-Law Engine evaluating against municipal codes (BL-001, BL-002)...');
+    }, 2500);
+
     try {
       const targetFileObj = stagedFiles[0].file;
       const formData = new FormData();
       formData.append('file', targetFileObj);
       formData.append('citizen_id', '1');
-
-      // Update animated stage message
-      setTimeout(() => {
-        setScanStage('Gemini Multimodal AI Vision extracting architectural dimensions (rear setback, ground coverage)...');
-      }, 900);
-
-      setTimeout(() => {
-        setScanStage('Deterministic Bye-Law Engine evaluating against municipal codes (BL-001, BL-002)...');
-      }, 2500);
 
       const response = await axios.post(
         'http://localhost:8000/api/applications/upload',
@@ -179,25 +178,38 @@ export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
         }
       );
 
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       setScanStage('Compliance scrutiny report generated successfully!');
-      setTimeout(() => {
-        setIsScanning(false);
-        onScrutinyComplete({
-          application: response.data,
-          category,
-          trackingId: trackingId || `APP-2026-${response.data.id || '9812'}`,
-          zone: zone || 'Delhi Municipal Corporation - Ward 14',
-          uploadedFileName: targetFileObj.name,
-        });
-      }, 600);
+
+      // Brief delay for visual confirmation before finishing
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      try {
+        if (typeof onScrutinyComplete === 'function') {
+          onScrutinyComplete({
+            application: response.data,
+            category,
+            trackingId: trackingId || `APP-2026-${response.data.id || '9812'}`,
+            zone: zone || 'Delhi Municipal Corporation - Ward 14',
+            uploadedFileName: targetFileObj.name,
+          });
+        }
+      } catch (callbackErr) {
+        console.error('Scrutiny data mapping error:', callbackErr);
+        setError(`Processing Error: ${callbackErr.message || 'Error occurred while loading scrutiny report.'}`);
+      }
     } catch (err) {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       console.error('Scrutiny upload failed:', err);
-      setIsScanning(false);
       const detailMsg =
         err.response?.data?.detail ||
         err.message ||
         'Failed to connect to backend scrutiny engine.';
       setError(`Scrutiny Error: ${detailMsg}`);
+    } finally {
+      setIsScanning(false);
     }
   };
 

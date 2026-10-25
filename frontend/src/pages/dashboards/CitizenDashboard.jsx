@@ -28,6 +28,13 @@ import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
 import { useAuth } from '../../context/AuthContext';
 
+const mockArchitects = [
+  { name: "Sunita Reddy", reg: "CA/2018/91234" }, 
+  { name: "Vikram Singh", reg: "CA/2012/55432" }, 
+  { name: "Priya Desai", reg: "CA/2020/12345" }, 
+  { name: "Arjun Nair", reg: "CA/2016/88776" }
+];
+
 export const CitizenDashboard = () => {
   const { user } = useAuth();
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -81,7 +88,11 @@ export const CitizenDashboard = () => {
         ? rawJson.penalty_score
         : Math.min(100, failedEvaluations.length * 50);
 
-    const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
+    const randomArchitect =
+      mockArchitects[Math.floor(Math.random() * mockArchitects.length)] || {
+        name: 'Sunita Reddy',
+        reg: 'CA/2018/91234',
+      };
     const reportObj = {
       appId: trackingId || `APP-2026-${application.id}`,
       databaseId: application.id,
@@ -117,6 +128,10 @@ export const CitizenDashboard = () => {
       officer: 'Automated AI Scrutiny Engine',
       remarks: reportObj.summary,
       reportData: reportObj,
+      architect_name: randomArchitect.name,
+      reg_number: randomArchitect.reg,
+      name: randomArchitect.name,
+      reg: randomArchitect.reg,
     };
     setSubmissions((prev) => [newSubmissionRow, ...prev]);
 
@@ -444,7 +459,11 @@ export const CitizenDashboard = () => {
           title="Citizen Submission History"
           data={submissions}
           onViewDetails={(row) => {
-            const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
+            const randomArchitect =
+              mockArchitects[Math.floor(Math.random() * mockArchitects.length)] || {
+                name: 'Sunita Reddy',
+                reg: 'CA/2018/91234',
+              };
             setSelectedSubmission({
               ...row,
               architect_name: row.architect_name || randomArchitect.name,
