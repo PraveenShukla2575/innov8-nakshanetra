@@ -13,6 +13,10 @@ import {
   X,
   ExternalLink,
   BookOpen,
+  UserCheck,
+  Award,
+  Loader2,
+  Search,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -21,14 +25,6 @@ import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
-import { useAuth } from '../../context/AuthContext';
-
-export const mockArchitects = [
-  { name: 'Sunita Reddy', reg: 'CA/2018/91234' },
-  { name: 'Vikram Singh', reg: 'CA/2012/55432' },
-  { name: 'Priya Desai', reg: 'CA/2020/12345' },
-  { name: 'Arjun Nair', reg: 'CA/2016/88776' },
-];
 
 export const OfficerDashboard = () => {
   const { user } = useAuth();
@@ -69,6 +65,8 @@ export const OfficerDashboard = () => {
       title: 'Commercial Complex Phase-2 (G+4)',
       category: 'Commercial Complex',
       entity: 'Okhla Ind. Area, Plot 45B',
+      architect_name: 'Rahul Verma',
+      reg_number: 'CA/2015/64321',
       status: 'PENDING',
       officer: 'Priya Sharma (You)',
       penalty_score: 50,
@@ -86,6 +84,8 @@ export const OfficerDashboard = () => {
       title: 'Mixed-Use Retail & Residential (G+3)',
       category: 'Mixed-Use',
       entity: 'Sector 22, Rohini, Plot 18',
+      architect_name: 'Sunita Rao',
+      reg_number: 'CA/2018/78210',
       status: 'FLAGGED',
       officer: 'Priya Sharma (You)',
       penalty_score: 50,
@@ -103,6 +103,8 @@ export const OfficerDashboard = () => {
       title: 'Industrial Logistics Hub & Depot',
       category: 'Industrial',
       entity: 'Narela Phase 1, Shed 4',
+      architect_name: 'Vikramaditya Seth',
+      reg_number: 'CA/2012/54019',
       status: 'PENDING',
       officer: 'Priya Sharma (You)',
       penalty_score: 0,
@@ -119,6 +121,8 @@ export const OfficerDashboard = () => {
       title: 'Eco-Living Villa Complex (G+2)',
       category: 'Residential - Plotted',
       entity: 'Sector 14, Dwarka, Plot 89',
+      architect_name: 'Ananya Roy',
+      reg_number: 'CA/2019/88124',
       status: 'APPROVED',
       officer: 'Priya Sharma (You)',
       penalty_score: 0,
@@ -135,6 +139,8 @@ export const OfficerDashboard = () => {
       title: 'Packaging Distribution Centre',
       category: 'Industrial & Warehouse',
       entity: 'Bawana Industrial Estate',
+      architect_name: 'Devendra Nath',
+      reg_number: 'CA/2014/43110',
       status: 'REJECTED',
       officer: 'Priya Sharma (You)',
       penalty_score: 100,
@@ -342,7 +348,7 @@ export const OfficerDashboard = () => {
               <StatusBadge status={selectedApp.status} />
             </div>
 
-            {/* Step 1: Pre-Scrutiny Architect & RERA Background Check Panel */}
+            {/* Step 1: Dedicated Pre-Scrutiny Architect & RERA Background Check */}
             <ArchitectVerificationPanel applicationData={selectedApp} />
 
             {/* Application Status Banner (Green / Red / Amber) */}
@@ -378,29 +384,7 @@ export const OfficerDashboard = () => {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="px-3.5 py-1.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/15 text-center shrink-0">
-                  <span className="text-[9px] uppercase font-semibold text-slate-300 block">
-                    Penalty / Risk Index
-                  </span>
-                  <span className="text-sm sm:text-base font-black text-white block">
-                    {applicationData?.status === 'APPROVED'
-                      ? 0
-                      : (applicationData?.scrutinyReport?.penalty_score ??
-                         applicationData?.penalty_score ??
-                         (applicationData?.violations
-                           ? Math.min(
-                               100,
-                               applicationData.violations.filter(
-                                 (v) => v.passed === false || (v.severity && v.severity !== 'Compliant')
-                               ).length * 50
-                             )
-                           : 0))}{' '}
-                    <span className="text-[10px] font-normal text-slate-300">/ 100</span>
-                  </span>
-                </div>
-                <StatusBadge status={selectedApp.status} size="sm" />
-              </div>
+              <StatusBadge status={selectedApp.status} size="sm" />
             </div>
 
             {/* Unified Bye-Law Verification Grid */}

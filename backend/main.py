@@ -673,7 +673,7 @@ def verify_architect(
     Performs real-time background and license status verification on the architect/builder
     using the TinyFish Web Agent against Council of Architecture (CoA) India and RERA registries.
     """
-    reg_number = request.reg_number or request.registration_number or "CA/2018/91234"
+    reg_number = request.reg_number or request.registration_number or "CA/2015/64321"
     result = verify_architect_license(
         architect_name=request.architect_name,
         registration_number=reg_number
@@ -686,8 +686,8 @@ def verify_rule_source(
     request: schemas.VerifyRuleRequest,
 ):
     """
-    Scrapes and verifies live regulatory citations for building bye-laws
-    using the TinyFish Web Agent API with timeout and graceful fallback.
+    Compatibility alias: Scrapes and verifies live regulatory citations for building bye-laws
+    using the TinyFish Web Agent API.
     """
     result = fetch_regulatory_citation(rule_code=request.rule_code, parameter=request.parameter)
     return result

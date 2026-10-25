@@ -26,8 +26,6 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { UploadZone } from '../../components/scanner/UploadZone';
 import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
-import { mockArchitects } from './OfficerDashboard';
-import { useAuth } from '../../context/AuthContext';
 
 export const CitizenDashboard = () => {
   const { user } = useAuth();

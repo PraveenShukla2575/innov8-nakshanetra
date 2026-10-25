@@ -112,4 +112,3 @@ class VerifyArchitectResponse(BaseModel):
     registration_number: Optional[str] = None
     registry: Optional[str] = None
 
-

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import {
   Shield,
@@ -7,6 +7,8 @@ import {
   ExternalLink,
   UserCheck,
   Award,
+  AlertCircle,
+  Building,
 } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -14,35 +16,22 @@ import { Button } from '../ui/Button';
 /**
  * ArchitectVerificationPanel
  * Dedicated GovTech-styled panel for live Pre-Scrutiny Architect & RERA background verification.
- * Supports dynamic architect data passed via applicationData.
  * 
  * @param {Object} props
- * @param {Object} props.applicationData - Contains dynamic architect details (name/architect_name, reg/reg_number).
+ * @param {Object} props.applicationData - Contains architect_name, reg_number, id, etc.
  */
 export const ArchitectVerificationPanel = ({ applicationData = {} }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
-  // Extract dynamic architect details from applicationData
-  const architectName =
-    applicationData?.architect_name ||
-    applicationData?.name ||
-    applicationData?.architect ||
-    'Sunita Reddy';
-
-  const regNumber =
-    applicationData?.reg_number ||
-    applicationData?.reg ||
-    applicationData?.registration_number ||
-    'CA/2018/91234';
-
-  // Reset verification result if the inspected application or architect changes
-  useEffect(() => {
-    setResult(null);
-  }, [applicationData?.id, architectName, regNumber]);
+  // Extract architect details with specified defaults
+  const architectName = applicationData?.architect_name || 'Rahul Verma';
+  const regNumber = applicationData?.reg_number || applicationData?.registration_number || 'CA/2015/64321';
 
   const handleVerify = async () => {
     setIsVerifying(true);
+    setError(null);
 
     const API_URL = import.meta.env?.VITE_API_URL
       ? `${import.meta.env.VITE_API_URL}/api/applications/verify-architect`
@@ -55,8 +44,8 @@ export const ArchitectVerificationPanel = ({ applicationData = {} }) => {
       });
       setResult(response.data);
     } catch (err) {
-      console.warn('API verification fallback applied:', err);
-      // Fallback object to ensure seamless officer evaluation flow with dynamic name
+      console.warn('API verification fallback triggered:', err);
+      // Fallback object to ensure seamless officer evaluation flow
       setResult({
         status: 'VERIFIED',
         source_url: 'https://www.coa.gov.in/registers.php',
@@ -96,7 +85,7 @@ export const ArchitectVerificationPanel = ({ applicationData = {} }) => {
 
         {/* Content Row */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Left Side: Dynamic Architect Details */}
+          {/* Left Side: Mock Architect Details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
             <div className="p-3 rounded-lg bg-white border border-slate-200/80 shadow-2xs">
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">

@@ -6,7 +6,6 @@ import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { ShieldCheck, Info, FileDown } from 'lucide-react';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
-import { mockArchitects } from './OfficerDashboard';
 
 export const ReportsView = ({ role = 'citizen' }) => {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
