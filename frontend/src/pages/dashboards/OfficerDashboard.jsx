@@ -25,6 +25,7 @@ import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
+import { useAuth } from '../../context/AuthContext';
 
 export const OfficerDashboard = () => {
   const { user } = useAuth();
