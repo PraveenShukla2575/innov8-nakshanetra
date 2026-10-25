@@ -15,6 +15,8 @@ import {
   RotateCcw,
   Sparkles,
   ExternalLink,
+  RefreshCw,
+  FileEdit,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -26,6 +28,7 @@ import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
 
 export const CitizenDashboard = () => {
+  const { user } = useAuth();
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [activeReport, setActiveReport] = useState(null); // Real-time Scrutiny Report from Gemini + Rule Engine
   const [submissions, setSubmissions] = useState([
@@ -68,6 +71,16 @@ export const CitizenDashboard = () => {
     const rawJson = scrutinyData.gemini_raw_json || {};
     const overallStatus = application.status || rawJson.overall_status || 'PENDING';
 
+    const evaluationsList = rawJson.evaluations || scrutinyData.rule_violations || [];
+    const failedEvaluations = evaluationsList.filter((e) => e.passed === false);
+    const dynamicPenaltyScore =
+      overallStatus === 'APPROVED' || failedEvaluations.length === 0
+        ? 0
+        : rawJson.penalty_score !== undefined
+        ? rawJson.penalty_score
+        : Math.min(100, failedEvaluations.length * 50);
+
+    const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
     const reportObj = {
       appId: trackingId || `APP-2026-${application.id}`,
       databaseId: application.id,
@@ -77,12 +90,17 @@ export const CitizenDashboard = () => {
       zone: zone,
       pdfUrl: application.pdf_url,
       summary: rawJson.summary || 'Architectural compliance check executed.',
-      riskScore: rawJson.risk_score ?? 0,
+      riskScore: dynamicPenaltyScore,
+      penalty_score: dynamicPenaltyScore,
       modelUsed: rawJson.raw_model || 'gemini-3.5-flash',
       rearSetback: rawJson.rear_setback_meters,
       groundCoverage: rawJson.ground_coverage_percent,
-      evaluations: rawJson.evaluations || scrutinyData.rule_violations || [],
+      evaluations: evaluationsList,
       timestamp: new Date().toISOString(),
+      architect_name: randomArchitect.name,
+      reg_number: randomArchitect.reg,
+      name: randomArchitect.name,
+      reg: randomArchitect.reg,
     };
 
     setActiveReport(reportObj);
@@ -114,7 +132,7 @@ export const CitizenDashboard = () => {
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold uppercase tracking-wider mb-3">
             <ShieldCheck size={14} />
-            Public Civic Portal
+            Public Civic Portal{user?.full_name ? ` • Citizen: ${user.full_name}` : ''}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Automated Building Bye-Law Scrutiny
@@ -259,13 +277,14 @@ export const CitizenDashboard = () => {
                 <p className="text-sm text-slate-200">{activeReport.summary}</p>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <div className="px-4 py-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-center">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="px-4 py-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-center shrink-0">
                   <span className="text-[10px] uppercase font-semibold text-slate-300 block">
                     Penalty / Risk Index
                   </span>
                   <span className="text-xl font-black mt-0.5 block">
-                    {activeReport.riskScore} <span className="text-xs font-normal">/ 100</span>
+                    {activeReport.status === 'APPROVED' ? 0 : (activeReport.scrutinyReport?.penalty_score ?? activeReport.penalty_score ?? activeReport.riskScore ?? 0)}{' '}
+                    <span className="text-xs font-normal">/ 100</span>
                   </span>
                 </div>
                 {activeReport.status === 'APPROVED' ? (
@@ -278,16 +297,17 @@ export const CitizenDashboard = () => {
                     Sanction Certificate
                   </Button>
                 ) : (
-                  <Button
-                    size="md"
-                    className="bg-white text-red-900 hover:bg-slate-100 shadow-md"
-                    icon={<RotateCcw size={16} />}
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 bg-white text-red-950 font-bold px-5 py-2.5 rounded-lg shadow-sm hover:bg-slate-100 transition-all border border-red-200"
                     onClick={() => {
+                      alert("Revision portal opening...");
                       document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth' });
                     }}
                   >
-                    Revise & Resubmit
-                  </Button>
+                    <RefreshCw size={16} className="text-red-950" />
+                    <span>Revise and Resubmit</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -422,7 +442,16 @@ export const CitizenDashboard = () => {
         <DataTable
           title="Citizen Submission History"
           data={submissions}
-          onViewDetails={(row) => setSelectedSubmission(row)}
+          onViewDetails={(row) => {
+            const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
+            setSelectedSubmission({
+              ...row,
+              architect_name: row.architect_name || randomArchitect.name,
+              reg_number: row.reg_number || randomArchitect.reg,
+              name: row.name || randomArchitect.name,
+              reg: row.reg || randomArchitect.reg,
+            });
+          }}
           onExportRow={(row) => generateScrutinyPDF(row, row.reportData)}
         />
       </div>
@@ -445,7 +474,23 @@ export const CitizenDashboard = () => {
                 <h4 className="text-sm font-bold text-navy-900">{selectedSubmission.title}</h4>
                 <p className="text-xs text-slate-500 mt-0.5">{selectedSubmission.entity}</p>
               </div>
-              <StatusBadge status={selectedSubmission.status} />
+              <div className="flex items-center gap-2.5 shrink-0">
+                <div className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-center">
+                  <span className="text-[9px] uppercase font-semibold text-slate-500 block leading-tight">
+                    Penalty / Risk
+                  </span>
+                  <span className="text-xs font-bold text-navy-900 block leading-tight">
+                    {selectedSubmission.status === 'APPROVED'
+                      ? 0
+                      : (selectedSubmission.reportData?.penalty_score ??
+                         selectedSubmission.penalty_score ??
+                         selectedSubmission.riskScore ??
+                         (selectedSubmission.status === 'REJECTED' ? 100 : 50))}{' '}
+                    <span className="text-[10px] font-normal text-slate-400">/ 100</span>
+                  </span>
+                </div>
+                <StatusBadge status={selectedSubmission.status} />
+              </div>
             </div>
 
             {/* Pre-Scrutiny Architect & RERA Background Check */}

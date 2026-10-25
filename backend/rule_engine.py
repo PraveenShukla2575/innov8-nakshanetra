@@ -139,14 +139,14 @@ def evaluate_compliance(extracted_data: Dict[str, Any], db_rules: List[Any]) -> 
     Evaluates all building bye-laws against the extracted plan metrics.
     Returns:
     - overall_status: 'APPROVED', 'REJECTED', or 'PENDING_REVIEW'
-    - risk_score: total penalty points (0 - 100)
+    - penalty_score: dynamic penalty points based on failed rules (0, 50, or 100)
+    - risk_score: penalty score (0 - 100)
     - evaluations: list of rule evaluation items
     - violations: list of specific violations (for ScrutinyReport.rule_violations)
     - summary: high-level compliance outcome
     """
     evaluations = []
     violations = []
-    total_penalty = 0.0
     has_violations = False
     has_missing_data = False
 
@@ -154,9 +154,8 @@ def evaluate_compliance(extracted_data: Dict[str, Any], db_rules: List[Any]) -> 
         eval_result = evaluate_single_rule(rule, extracted_data)
         evaluations.append(eval_result)
         
-        if eval_result["status"] in ("VIOLATION", "ERROR"):
+        if eval_result.get("passed") is False or eval_result["status"] in ("VIOLATION", "ERROR"):
             has_violations = True
-            total_penalty += eval_result.get("penalty_score", 0.0)
             violations.append(eval_result)
         elif eval_result["status"] == "MISSING_DATA":
             has_missing_data = True
@@ -172,9 +171,20 @@ def evaluate_compliance(extracted_data: Dict[str, Any], db_rules: List[Any]) -> 
         overall_status = "APPROVED"
         summary = "All architectural dimensions strictly comply with Municipal Bye-Laws."
 
+    # Dynamic penalty score calculation:
+    # 0 for fully compliant / approved
+    # 50 points for each failed rule, capped at 100
+    failed_rules_count = sum(1 for e in evaluations if e.get("passed") is False)
+    if overall_status == "APPROVED" or failed_rules_count == 0:
+        penalty_score = 0
+    else:
+        penalty_score = min(100, failed_rules_count * 50)
+
     return {
+        "status": overall_status,
         "overall_status": overall_status,
-        "risk_score": min(100.0, total_penalty),
+        "penalty_score": penalty_score,
+        "risk_score": penalty_score,
         "evaluations": evaluations,
         "violations": violations,
         "extracted_data": extracted_data,

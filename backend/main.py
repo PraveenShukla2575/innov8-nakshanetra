@@ -188,7 +188,9 @@ def process_naksha_file(filename: str, file_bytes: bytes, mime_type: str, db: Se
         "rear_setback_meters": extracted_data.get("rear_setback_meters"),
         "ground_coverage_percent": extracted_data.get("ground_coverage_percent"),
         "raw_model": extracted_data.get("raw_model"),
+        "status": compliance["overall_status"],
         "overall_status": compliance["overall_status"],
+        "penalty_score": compliance.get("penalty_score", compliance["risk_score"]),
         "risk_score": compliance["risk_score"],
         "summary": compliance["summary"],
         "evaluations": compliance["evaluations"]
@@ -197,7 +199,10 @@ def process_naksha_file(filename: str, file_bytes: bytes, mime_type: str, db: Se
         gemini_raw_json["gemini_error"] = extracted_data["error"]
 
     return {
+        "status": compliance["overall_status"],
         "overall_status": compliance["overall_status"],
+        "penalty_score": compliance.get("penalty_score", compliance["risk_score"]),
+        "risk_score": compliance["risk_score"],
         "gemini_raw_json": gemini_raw_json,
         "rule_violations": compliance["violations"] if compliance["violations"] else compliance["evaluations"]
     }

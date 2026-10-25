@@ -27,6 +27,7 @@ import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
 
 export const OfficerDashboard = () => {
+  const { user } = useAuth();
   const [selectedApp, setSelectedApp] = useState(null);
   const [verifyingCode, setVerifyingCode] = useState(null);
   const [ruleCitations, setRuleCitations] = useState({});
@@ -68,9 +69,13 @@ export const OfficerDashboard = () => {
       reg_number: 'CA/2015/64321',
       status: 'PENDING',
       officer: 'Priya Sharma (You)',
+      penalty_score: 50,
+      scrutinyReport: {
+        penalty_score: 50,
+      },
       violations: [
-        { code: 'BL-001', rule: 'Rear Setback Distance', actual: '2.20 m', required: 'Min 3.00 m', severity: 'Deficient' },
-        { code: 'BL-004', rule: 'Emergency Fire Exit Staircase Width', actual: '1.50 m', required: 'Min 1.50 m', severity: 'Compliant' },
+        { code: 'BL-001', rule: 'Rear Setback Distance', actual: '2.20 m', required: 'Min 3.00 m', severity: 'Deficient', passed: false },
+        { code: 'BL-004', rule: 'Emergency Fire Exit Staircase Width', actual: '1.50 m', required: 'Min 1.50 m', severity: 'Compliant', passed: true },
       ],
     },
     {
@@ -83,9 +88,13 @@ export const OfficerDashboard = () => {
       reg_number: 'CA/2018/78210',
       status: 'FLAGGED',
       officer: 'Priya Sharma (You)',
+      penalty_score: 50,
+      scrutinyReport: {
+        penalty_score: 50,
+      },
       violations: [
-        { code: 'BL-002', rule: 'Ground Coverage Ratio', actual: '53.2%', required: 'Max 50.0%', severity: 'Excessive' },
-        { code: 'BL-003', rule: 'Floor Area Ratio (FAR)', actual: '198', required: 'Max 200', severity: 'Compliant' },
+        { code: 'BL-002', rule: 'Ground Coverage Ratio', actual: '53.2%', required: 'Max 50.0%', severity: 'Excessive', passed: false },
+        { code: 'BL-003', rule: 'Floor Area Ratio (FAR)', actual: '198', required: 'Max 200', severity: 'Compliant', passed: true },
       ],
     },
     {
@@ -98,8 +107,12 @@ export const OfficerDashboard = () => {
       reg_number: 'CA/2012/54019',
       status: 'PENDING',
       officer: 'Priya Sharma (You)',
+      penalty_score: 0,
+      scrutinyReport: {
+        penalty_score: 0,
+      },
       violations: [
-        { code: 'BL-005', rule: 'Front Road Right of Way (ROW)', actual: '18.0 m', required: 'Min 18.0 m', severity: 'Compliant' },
+        { code: 'BL-005', rule: 'Front Road Right of Way (ROW)', actual: '18.0 m', required: 'Min 18.0 m', severity: 'Compliant', passed: true },
       ],
     },
     {
@@ -112,8 +125,12 @@ export const OfficerDashboard = () => {
       reg_number: 'CA/2019/88124',
       status: 'APPROVED',
       officer: 'Priya Sharma (You)',
+      penalty_score: 0,
+      scrutinyReport: {
+        penalty_score: 0,
+      },
       violations: [
-        { code: 'BL-ALL', rule: 'All NBC 2016 Bye-Laws', actual: '100% Pass', required: 'Pass', severity: 'Compliant' },
+        { code: 'BL-ALL', rule: 'All NBC 2016 Bye-Laws', actual: '100% Pass', required: 'Pass', severity: 'Compliant', passed: true },
       ],
     },
     {
@@ -126,8 +143,13 @@ export const OfficerDashboard = () => {
       reg_number: 'CA/2014/43110',
       status: 'REJECTED',
       officer: 'Priya Sharma (You)',
+      penalty_score: 100,
+      scrutinyReport: {
+        penalty_score: 100,
+      },
       violations: [
-        { code: 'BL-007', rule: 'Hazardous Chemical Buffer Zone', actual: '5.0 m', required: 'Min 12.0 m', severity: 'Critical Hazard' },
+        { code: 'BL-007', rule: 'Hazardous Chemical Buffer Zone', actual: '5.0 m', required: 'Min 12.0 m', severity: 'Critical Hazard', passed: false },
+        { code: 'BL-001', rule: 'Rear Setback Distance', actual: '2.10 m', required: 'Min 4.00 m', severity: 'Deficient', passed: false },
       ],
     },
   ]);
@@ -146,6 +168,8 @@ export const OfficerDashboard = () => {
     setSelectedApp(null);
   };
 
+  const applicationData = selectedApp;
+
   return (
     <div className="space-y-8 pb-10">
       {/* Officer Station Hero Banner (Navy/Indigo) */}
@@ -153,7 +177,7 @@ export const OfficerDashboard = () => {
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-500/20 text-primary-300 border border-primary-400/30 text-xs font-semibold uppercase tracking-wider mb-3">
             <ShieldCheck size={14} />
-            Field Scrutiny Enforcement Wing
+            Field Scrutiny Enforcement Wing{user?.full_name ? ` • Officer: ${user.full_name}` : ''}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Building Bye-Law Scrutiny Queue
@@ -260,7 +284,16 @@ export const OfficerDashboard = () => {
         <DataTable
           title="Field Officer Scrutiny Roster"
           data={applications}
-          onViewDetails={(row) => setSelectedApp(row)}
+          onViewDetails={(row) => {
+            const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
+            setSelectedApp({
+              ...row,
+              architect_name: randomArchitect.name,
+              reg_number: randomArchitect.reg,
+              name: randomArchitect.name,
+              reg: randomArchitect.reg,
+            });
+          }}
           onExportRow={(row) => {
             const evaluations = row.violations?.map((v) => ({
               rule_code: v.code,
