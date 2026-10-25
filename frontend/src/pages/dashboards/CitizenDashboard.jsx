@@ -23,6 +23,7 @@ import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { UploadZone } from '../../components/scanner/UploadZone';
 import { generateScrutinyPDF } from '../../lib/pdfGenerator';
+import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
 
 export const CitizenDashboard = () => {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -221,6 +222,9 @@ export const CitizenDashboard = () => {
               Dismiss Report
             </button>
           </div>
+
+          {/* Pre-Scrutiny Architect & RERA Background Check Panel */}
+          <ArchitectVerificationPanel applicationData={activeReport} />
 
           {/* Master Status Card */}
           <div
@@ -443,6 +447,9 @@ export const CitizenDashboard = () => {
               </div>
               <StatusBadge status={selectedSubmission.status} />
             </div>
+
+            {/* Pre-Scrutiny Architect & RERA Background Check */}
+            <ArchitectVerificationPanel applicationData={selectedSubmission} />
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-lg bg-slate-50">

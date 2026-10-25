@@ -13,6 +13,10 @@ import {
   X,
   ExternalLink,
   BookOpen,
+  UserCheck,
+  Award,
+  Loader2,
+  Search,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -20,6 +24,7 @@ import { DataTable } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { generateScrutinyPDF } from '../../lib/pdfGenerator';
+import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
 
 export const OfficerDashboard = () => {
   const [selectedApp, setSelectedApp] = useState(null);
@@ -59,6 +64,8 @@ export const OfficerDashboard = () => {
       title: 'Commercial Complex Phase-2 (G+4)',
       category: 'Commercial Complex',
       entity: 'Okhla Ind. Area, Plot 45B',
+      architect_name: 'Rahul Verma',
+      reg_number: 'CA/2015/64321',
       status: 'PENDING',
       officer: 'Priya Sharma (You)',
       violations: [
@@ -72,6 +79,8 @@ export const OfficerDashboard = () => {
       title: 'Mixed-Use Retail & Residential (G+3)',
       category: 'Mixed-Use',
       entity: 'Sector 22, Rohini, Plot 18',
+      architect_name: 'Sunita Rao',
+      reg_number: 'CA/2018/78210',
       status: 'FLAGGED',
       officer: 'Priya Sharma (You)',
       violations: [
@@ -85,6 +94,8 @@ export const OfficerDashboard = () => {
       title: 'Industrial Logistics Hub & Depot',
       category: 'Industrial',
       entity: 'Narela Phase 1, Shed 4',
+      architect_name: 'Vikramaditya Seth',
+      reg_number: 'CA/2012/54019',
       status: 'PENDING',
       officer: 'Priya Sharma (You)',
       violations: [
@@ -97,6 +108,8 @@ export const OfficerDashboard = () => {
       title: 'Eco-Living Villa Complex (G+2)',
       category: 'Residential - Plotted',
       entity: 'Sector 14, Dwarka, Plot 89',
+      architect_name: 'Ananya Roy',
+      reg_number: 'CA/2019/88124',
       status: 'APPROVED',
       officer: 'Priya Sharma (You)',
       violations: [
@@ -109,6 +122,8 @@ export const OfficerDashboard = () => {
       title: 'Packaging Distribution Centre',
       category: 'Industrial & Warehouse',
       entity: 'Bawana Industrial Estate',
+      architect_name: 'Devendra Nath',
+      reg_number: 'CA/2014/43110',
       status: 'REJECTED',
       officer: 'Priya Sharma (You)',
       violations: [
@@ -300,10 +315,50 @@ export const OfficerDashboard = () => {
               <StatusBadge status={selectedApp.status} />
             </div>
 
+            {/* Step 1: Dedicated Pre-Scrutiny Architect & RERA Background Check */}
+            <ArchitectVerificationPanel applicationData={selectedApp} />
+
+            {/* Application Status Banner (Green / Red / Amber) */}
+            <div
+              className={`p-3.5 sm:p-4 rounded-xl border text-white shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                selectedApp.status === 'APPROVED'
+                  ? 'bg-gradient-to-r from-emerald-950 via-teal-900 to-emerald-900 border-emerald-500/40'
+                  : selectedApp.status === 'REJECTED'
+                  ? 'bg-gradient-to-r from-red-950 via-rose-900 to-red-900 border-red-500/40'
+                  : 'bg-gradient-to-r from-amber-950 via-yellow-900 to-amber-900 border-amber-500/40'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white/10 backdrop-blur-md shrink-0">
+                  {selectedApp.status === 'APPROVED' ? (
+                    <CheckCircle2 size={20} className="text-emerald-400" />
+                  ) : selectedApp.status === 'REJECTED' ? (
+                    <X size={20} className="text-red-400" />
+                  ) : (
+                    <AlertTriangle size={20} className="text-amber-400" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold tracking-tight">
+                    {selectedApp.status === 'APPROVED'
+                      ? 'APPLICATION STATUS: SANCTION CLEARED'
+                      : selectedApp.status === 'REJECTED'
+                      ? 'APPLICATION STATUS: STATUTORY DEFICIENCIES FLAGGED'
+                      : 'APPLICATION STATUS: PENDING OFFICER FIELD SCRUTINY'}
+                  </h4>
+                  <p className="text-[11px] text-slate-300">
+                    Application ID: {selectedApp.id} &bull; Zone: {selectedApp.entity}
+                  </p>
+                </div>
+              </div>
+              <StatusBadge status={selectedApp.status} size="sm" />
+            </div>
+
+            {/* Unified Bye-Law Verification Grid */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
               <div className="flex items-center justify-between mb-2.5">
                 <h5 className="text-xs font-bold text-navy-900 uppercase tracking-wider">
-                  Rule Engine Scrutiny Checks (NBC 2016 & UBBL)
+                  Unified Bye-Law Verification Grid (NBC 2016 & UBBL)
                 </h5>
                 <span className="text-[11px] text-slate-500">Live Scraper Verification Enabled</span>
               </div>
