@@ -2,10 +2,46 @@ from typing import Optional, List, Any
 from pydantic import BaseModel, ConfigDict
 
 
+class UserRegister(BaseModel):
+    full_name: Optional[str] = None
+    name: Optional[str] = None
+    email: str
+    password: str
+    role: Optional[str] = "CITIZEN"
+    zone: Optional[str] = "Delhi (MCD)"
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class UserAuthResponse(BaseModel):
+    id: int
+    full_name: str
+    name: Optional[str] = None
+    email: str
+    role: str
+    zone: Optional[str] = None
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserAuthResponse
+
+
 class UserResponse(BaseModel):
     id: int
-    name: str
+    full_name: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
     role: str
+    zone: Optional[str] = None
+    status: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

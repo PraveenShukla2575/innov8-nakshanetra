@@ -10,6 +10,7 @@ import {
   FileText,
 } from 'lucide-react';
 
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { RolePortalLayout } from './components/layout/RolePortalLayout';
 import { LoginPage } from './pages/LoginPage';
 import { CitizenDashboard } from './pages/dashboards/CitizenDashboard';
@@ -37,26 +38,36 @@ export const adminNavItems = [
   { path: '/admin/settings', label: 'System Settings', icon: Settings },
 ];
 
-// Distinct mock user profiles per role
-export const citizenUser = { name: 'Anjali Sharma', role: 'CITIZEN', zone: 'Delhi Resident' };
-export const officerUser = { name: 'Ravi Kumar', role: 'OFFICER', zone: 'South Delhi Division' };
-export const adminUser = { name: 'Priya Desai', role: 'ADMIN', zone: 'Central Command HQ' };
-
-// Helper wrapper to provide navigation, user, and backend status props into RolePortalLayout
-function PortalLayoutWrapper({ backendStatus, backendMessage, navItems, user }) {
+// Helper wrapper to provide navigation, live user from AuthContext, and backend status props into RolePortalLayout
+function PortalLayoutWrapper({ backendStatus, backendMessage, navItems, defaultRole }) {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  // Prefer live authenticated user from database/AuthContext; fallback gracefully if accessed directly
+  const effectiveUser = user || {
+    full_name: defaultRole === 'admin' ? 'Amit Verma' : defaultRole === 'officer' ? 'Priya Sharma' : 'Ravi Kumar',
+    name: defaultRole === 'admin' ? 'Amit Verma' : defaultRole === 'officer' ? 'Priya Sharma' : 'Ravi Kumar',
+    email: defaultRole === 'admin' ? 'admin@nakshanetra.gov.in' : defaultRole === 'officer' ? 'officer.priya@mcd.gov.in' : 'citizen.ravi@gmail.com',
+    role: defaultRole.toUpperCase(),
+    zone: defaultRole === 'admin' ? 'Central Command HQ' : defaultRole === 'officer' ? 'South Delhi Division' : 'Delhi (MCD)',
+    status: 'APPROVED',
+  };
+
   return (
     <RolePortalLayout
       backendStatus={backendStatus}
       backendMessage={backendMessage}
-      onLogout={() => navigate('/')}
+      onLogout={() => {
+        logout();
+        navigate('/login');
+      }}
       navItems={navItems}
-      user={user}
+      user={effectiveUser}
     />
   );
 }
 
-export default function App() {
+function AppRoutes() {
   const [backendStatus, setBackendStatus] = useState('checking'); // 'connected' | 'disconnected' | 'checking'
   const [backendMessage, setBackendMessage] = useState('');
 
@@ -110,7 +121,7 @@ export default function App() {
               backendStatus={backendStatus}
               backendMessage={backendMessage}
               navItems={citizenNavItems}
-              user={citizenUser}
+              defaultRole="citizen"
             />
           }
         >
@@ -129,7 +140,7 @@ export default function App() {
               backendStatus={backendStatus}
               backendMessage={backendMessage}
               navItems={officerNavItems}
-              user={officerUser}
+              defaultRole="officer"
             />
           }
         >
@@ -147,7 +158,7 @@ export default function App() {
               backendStatus={backendStatus}
               backendMessage={backendMessage}
               navItems={adminNavItems}
-              user={adminUser}
+              defaultRole="admin"
             />
           }
         >
@@ -162,5 +173,13 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }

@@ -115,7 +115,7 @@ export const ProfileModal = ({ isOpen, onClose, user }) => {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-lg font-bold text-navy-900 truncate">
-                {user?.name || 'Ravi Kumar'}
+                {user?.full_name || user?.name || 'Ravi Kumar'}
               </h3>
               <span
                 className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
@@ -124,12 +124,17 @@ export const ProfileModal = ({ isOpen, onClose, user }) => {
               >
                 {user?.badgeText || user?.role || 'Citizen Public'}
               </span>
+              {user?.status && (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {user.status}
+                </span>
+              )}
             </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
               <div className="flex items-center gap-1.5">
                 <MapPin size={13} className="text-slate-400 shrink-0" />
-                <span className="truncate">{user?.zone || 'South Delhi Division'}</span>
+                <span className="truncate">{user?.zone || 'Delhi (MCD)'}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Mail size={13} className="text-slate-400 shrink-0" />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
+import { useAuth } from '../context/AuthContext';
 import { useAuthStore } from '../store';
 import {
   ScanLine,
@@ -14,9 +15,11 @@ import {
   User,
   Briefcase,
   AlertCircle,
+  CheckCircle2,
   Building2,
   ArrowRight,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 
 const MUNICIPAL_ZONES = [
@@ -31,6 +34,7 @@ const MUNICIPAL_ZONES = [
 
 export const LoginPage = () => {
   const navigate = useNavigate();
+  const { login, register } = useAuth();
   const { setCurrentUser } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
@@ -47,75 +51,115 @@ export const LoginPage = () => {
   const [accountType, setAccountType] = useState('citizen');
   const [rememberMe, setRememberMe] = useState(true);
 
+  // Feedback states
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Quick Demo Auto-Fill (RBAC Testing)
   const handleQuickDemo = (role) => {
     setSelectedDemoRole(role);
+    setErrorMessage(null);
+    setSuccessMessage(null);
     if (role === 'admin') {
       setEmail('admin@nakshanetra.gov.in');
       setPassword('Admin@Naksha2026');
       setZone('Delhi (MCD)');
-      setFullName('Amit Verma (System Admin)');
+      setFullName('Amit Verma');
       setAccountType('admin');
     } else if (role === 'officer') {
       setEmail('officer.priya@mcd.gov.in');
       setPassword('Officer@Naksha2026');
-      setZone('Delhi (MCD)');
-      setFullName('Priya Sharma (Field Officer)');
+      setZone('South Delhi Division');
+      setFullName('Priya Sharma');
       setAccountType('officer');
     } else {
       // citizen
       setEmail('citizen.ravi@gmail.com');
       setPassword('Citizen@Naksha2026');
       setZone('Delhi (MCD)');
-      setFullName('Ravi Kumar (Citizen)');
+      setFullName('Ravi Kumar');
       setAccountType('citizen');
     }
   };
 
-  // Form submission & routing logic
-  const handleSubmit = (e) => {
+  // Form submission & live backend API routing logic
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Determine target role from quick demo, email domain, or register account type
-    let finalRole = selectedDemoRole || 'citizen';
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
 
     if (activeTab === 'register') {
-      finalRole = accountType;
-    } else {
-      const lowerEmail = email.toLowerCase();
-      if (lowerEmail.includes('admin')) {
-        finalRole = 'admin';
-      } else if (lowerEmail.includes('officer') || lowerEmail.includes('field')) {
-        finalRole = 'officer';
-      } else if (selectedDemoRole) {
-        finalRole = selectedDemoRole;
-      } else {
-        finalRole = 'citizen';
+      if (password !== confirmPassword) {
+        setErrorMessage('Passwords do not match. Please verify your password confirmation.');
+        setIsSubmitting(false);
+        return;
       }
-    }
 
-    // Update global user state
-    setCurrentUser({
-      id: finalRole === 'admin' ? 3 : finalRole === 'officer' ? 2 : 1,
-      name:
-        fullName.trim() ||
-        (finalRole === 'admin'
-          ? 'Amit Verma'
-          : finalRole === 'officer'
-          ? 'Priya Sharma'
-          : 'Ravi Kumar'),
-      email: email || `${finalRole}@nakshanetra.gov.in`,
-      role: finalRole,
-      zone: zone,
-    });
+      const roleNormalized = accountType.toUpperCase();
+      try {
+        const result = await register({
+          name: fullName.trim() || fullName,
+          full_name: fullName.trim() || fullName,
+          email: email.trim(),
+          password,
+          role: roleNormalized,
+          zone,
+        });
 
-    // Navigate to respective dashboard
-    if (finalRole === 'admin') {
-      navigate('/admin');
-    } else if (finalRole === 'officer') {
-      navigate('/officer');
+        setIsSubmitting(false);
+
+        if (roleNormalized === 'OFFICER') {
+          setSuccessMessage(
+            'Registration successful. Details sent to Admin for approval.'
+          );
+          setPassword('');
+          setConfirmPassword('');
+        } else {
+          // Citizen or Admin auto-login
+          if (roleNormalized === 'ADMIN') {
+            navigate('/admin');
+          } else {
+            navigate('/citizen');
+          }
+        }
+      } catch (err) {
+        setIsSubmitting(false);
+        if (err.response?.status === 400) {
+          setErrorMessage('Email already registered. Please switch to Login.');
+        } else {
+          setErrorMessage(
+            err.response?.data?.detail || 'Registration failed. Please try again.'
+          );
+        }
+      }
     } else {
-      navigate('/citizen');
+      // Login mode
+      try {
+        const loggedInUser = await login(email.trim(), password);
+        setIsSubmitting(false);
+
+        const userRole = (loggedInUser.role || '').toUpperCase();
+        if (userRole === 'ADMIN') {
+          navigate('/admin');
+        } else if (userRole === 'OFFICER') {
+          navigate('/officer');
+        } else {
+          navigate('/citizen');
+        }
+      } catch (err) {
+        setIsSubmitting(false);
+        if (err.response?.status === 403) {
+          setErrorMessage('Your officer account is still pending admin approval.');
+        } else if (err.response?.status === 401) {
+          setErrorMessage('Invalid email or password. Please verify your credentials.');
+        } else {
+          setErrorMessage(
+            err.response?.data?.detail || 'Login failed. Please verify credentials and backend status.'
+          );
+        }
+      }
     }
   };
 
@@ -321,6 +365,44 @@ export const LoginPage = () => {
                 </div>
               </div>
 
+              {/* Dynamic Error Message Box */}
+              {errorMessage && (
+                <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-3 sm:p-3.5 flex items-start gap-2.5">
+                  <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-bold leading-tight">Authentication Notice</p>
+                    <p className="text-[12px] text-red-700 leading-relaxed mt-0.5">{errorMessage}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setErrorMessage(null)}
+                    className="text-red-400 hover:text-red-600 text-sm font-bold px-1"
+                    aria-label="Dismiss error"
+                  >
+                    &times;
+                  </button>
+                </div>
+              )}
+
+              {/* Dynamic Success Message Box */}
+              {successMessage && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl p-3 sm:p-3.5 flex items-start gap-2.5">
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-bold leading-tight">Registration Submitted</p>
+                    <p className="text-[12px] text-emerald-800 leading-relaxed mt-0.5">{successMessage}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSuccessMessage(null)}
+                    className="text-emerald-500 hover:text-emerald-700 text-sm font-bold px-1"
+                    aria-label="Dismiss message"
+                  >
+                    &times;
+                  </button>
+                </div>
+              )}
+
               {/* Quick Demo Logins (RBAC Testing Pill Strip) */}
               <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
@@ -334,7 +416,7 @@ export const LoginPage = () => {
                   <button
                     type="button"
                     onClick={() => handleQuickDemo('admin')}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
                       selectedDemoRole === 'admin'
                         ? 'bg-blue-50 border-blue-400 text-blue-700 shadow-sm'
                         : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
@@ -345,7 +427,7 @@ export const LoginPage = () => {
                   <button
                     type="button"
                     onClick={() => handleQuickDemo('officer')}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
                       selectedDemoRole === 'officer'
                         ? 'bg-blue-50 border-blue-400 text-blue-700 shadow-sm'
                         : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
@@ -356,7 +438,7 @@ export const LoginPage = () => {
                   <button
                     type="button"
                     onClick={() => handleQuickDemo('citizen')}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center ${
+                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold border transition-all text-center cursor-pointer ${
                       selectedDemoRole === 'citizen'
                         ? 'bg-blue-50 border-blue-400 text-blue-700 shadow-sm'
                         : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
@@ -529,10 +611,20 @@ export const LoginPage = () => {
                 {/* Action Button */}
                 <button
                   type="submit"
-                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md shadow-blue-500/25 transition-all duration-150 active:scale-[0.99] flex items-center justify-center gap-2 mt-2"
+                  disabled={isSubmitting}
+                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-md shadow-blue-500/25 transition-all duration-150 active:scale-[0.99] flex items-center justify-center gap-2 mt-2 cursor-pointer"
                 >
-                  <span>{activeTab === 'login' ? 'Sign In to Portal' : 'Create Account'}</span>
-                  <ArrowRight size={16} />
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Processing Credentials...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{activeTab === 'login' ? 'Sign In to Portal' : 'Create Account'}</span>
+                      <ArrowRight size={16} />
+                    </>
+                  )}
                 </button>
               </form>
 

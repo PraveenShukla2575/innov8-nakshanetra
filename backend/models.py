@@ -6,8 +6,20 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
-    role = Column(String(50), nullable=False)  # 'citizen', 'officer', 'admin'
+    name = Column(String(255), nullable=True)
+    full_name = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False)  # 'CITIZEN', 'OFFICER', 'ADMIN'
+    zone = Column(String(255), nullable=True, default="Delhi (MCD)")
+    status = Column(String(50), default="APPROVED", nullable=False)  # 'PENDING', 'APPROVED', 'REJECTED'
+
+    def __init__(self, **kwargs):
+        if "full_name" in kwargs and "name" not in kwargs:
+            kwargs["name"] = kwargs["full_name"]
+        elif "name" in kwargs and "full_name" not in kwargs:
+            kwargs["full_name"] = kwargs["name"]
+        super().__init__(**kwargs)
 
     # Relationships
     submitted_applications = relationship(
@@ -23,7 +35,7 @@ class User(Base):
     )
 
     def __repr__(self):
-        return f"<User(id={self.id}, name='{self.name}', role='{self.role}')>"
+        return f"<User(id={self.id}, full_name='{self.full_name}', email='{self.email}', role='{self.role}', status='{self.status}')>"
 
 
 class Rule(Base):

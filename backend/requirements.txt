@@ -5,7 +5,9 @@ psycopg2-binary
 python-dotenv
 pydantic
 python-multipart
+passlib[bcrypt]
+bcrypt
+python-jose[cryptography]
 google-generativeai
 requests
 pillow
-

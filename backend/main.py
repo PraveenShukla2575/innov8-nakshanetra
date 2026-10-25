@@ -2,18 +2,20 @@ import os
 import shutil
 import uuid
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, status, Query, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, status, Query, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, text, inspect
 
-from database import engine, Base, get_db
+from database import engine, Base, get_db, SessionLocal
 import models
 import schemas
 import mimetypes
 from gemini_service import extract_naksha_data
 from rule_engine import evaluate_compliance
 from tinyfish_service import fetch_regulatory_citation
+from auth import hash_password, verify_password, create_access_token, decode_access_token
 
 app = FastAPI(
     title="NakshaNetra API",
@@ -28,6 +30,7 @@ origins = [
     "http://localhost:5175",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
 ]
 
 app.add_middleware(
@@ -44,10 +47,124 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
+def migrate_and_seed_db(db: Session):
+    """
+    Ensures that the users table schema has all required columns:
+    full_name, email, hashed_password, role, zone, status.
+    Safely migrates SQLite or PostgreSQL tables and seeds default demo users.
+    """
+    Base.metadata.create_all(bind=engine)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+
+    if "users" in tables:
+        columns = [c["name"] for c in inspector.get_columns("users")]
+        with engine.connect() as conn:
+            if "full_name" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR(255)"))
+                if "name" in columns:
+                    conn.execute(text("UPDATE users SET full_name = name WHERE full_name IS NULL"))
+            if "email" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(255)"))
+            if "hashed_password" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN hashed_password VARCHAR(255)"))
+            if "zone" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN zone VARCHAR(255) DEFAULT 'Delhi (MCD)'"))
+            if "status" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN status VARCHAR(50) DEFAULT 'APPROVED'"))
+            if "name" in columns:
+                try:
+                    conn.execute(text("ALTER TABLE users ALTER COLUMN name DROP NOT NULL"))
+                except Exception:
+                    pass
+            conn.commit()
+
+    # Seed / ensure default demo users with correct hashed passwords and roles
+    demo_users = [
+        {
+            "id": 1,
+            "full_name": "Ravi Kumar",
+            "email": "citizen.ravi@gmail.com",
+            "password": "Citizen@Naksha2026",
+            "role": "CITIZEN",
+            "zone": "Delhi (MCD)",
+            "status": "APPROVED",
+        },
+        {
+            "id": 2,
+            "full_name": "Priya Sharma",
+            "email": "officer.priya@mcd.gov.in",
+            "password": "Officer@Naksha2026",
+            "role": "OFFICER",
+            "zone": "South Delhi Division",
+            "status": "APPROVED",
+        },
+        {
+            "id": 3,
+            "full_name": "Amit Verma",
+            "email": "admin@nakshanetra.gov.in",
+            "password": "Admin@Naksha2026",
+            "role": "ADMIN",
+            "zone": "Central Command HQ",
+            "status": "APPROVED",
+        },
+    ]
+
+    for u_data in demo_users:
+        user = (
+            db.query(models.User)
+            .filter(
+                (models.User.id == u_data["id"])
+                | (func.lower(models.User.email) == u_data["email"].lower())
+            )
+            .first()
+        )
+        if user:
+            user.full_name = user.full_name or u_data["full_name"]
+            user.email = user.email or u_data["email"]
+            if not user.hashed_password:
+                user.hashed_password = hash_password(u_data["password"])
+            user.role = user.role or u_data["role"]
+            user.zone = user.zone or u_data["zone"]
+            user.status = user.status or u_data["status"]
+        else:
+            new_user = models.User(
+                id=u_data["id"],
+                full_name=u_data["full_name"],
+                email=u_data["email"],
+                hashed_password=hash_password(u_data["password"]),
+                role=u_data["role"],
+                zone=u_data["zone"],
+                status=u_data["status"],
+            )
+            db.add(new_user)
+
+    # Seed default rules if empty
+    if db.query(models.Rule).count() == 0:
+        default_rules = [
+            models.Rule(
+                rule_code="BL-001",
+                parameter="rear_setback_meters",
+                operator=">=",
+                required_value=3.0,
+            ),
+            models.Rule(
+                rule_code="BL-002",
+                parameter="ground_coverage_percent",
+                operator="<=",
+                required_value=50.0,
+            ),
+        ]
+        db.add_all(default_rules)
+
+    db.commit()
+
+
 @app.on_event("startup")
 def on_startup():
-    """Ensure database schema tables are initialized on startup."""
-    Base.metadata.create_all(bind=engine)
+    """Ensure database schema tables are initialized and migrated on startup."""
+    with SessionLocal() as db:
+        migrate_and_seed_db(db)
 
 
 def process_naksha_file(filename: str, file_bytes: bytes, mime_type: str, db: Session) -> dict:
@@ -124,59 +241,220 @@ def health_check():
 @app.post("/api/setup")
 def setup_database(db: Session = Depends(get_db)):
     """
-    Initializes database tables via Base.metadata.create_all(bind=engine)
-    and seeds initial mock data (Users & Rules) only if User table is empty.
+    Initializes database tables, verifies columns, and seeds demo users and rules.
     """
     try:
-        Base.metadata.create_all(bind=engine)
-
-        existing_users_count = db.query(models.User).count()
-
-        if existing_users_count == 0:
-            default_users = [
-                models.User(name="Ravi", role="citizen"),
-                models.User(name="Priya", role="officer"),
-                models.User(name="Amit", role="admin"),
-            ]
-            db.add_all(default_users)
-
-            default_rules = [
-                models.Rule(
-                    rule_code="BL-001",
-                    parameter="rear_setback_meters",
-                    operator=">=",
-                    required_value=3.0,
-                ),
-                models.Rule(
-                    rule_code="BL-002",
-                    parameter="ground_coverage_percent",
-                    operator="<=",
-                    required_value=50.0,
-                ),
-            ]
-            db.add_all(default_rules)
-            db.commit()
-
-            return {
-                "status": "success",
-                "message": "Tables created and seeded successfully with initial users and rules.",
-                "seeded": True,
-                "users_count": len(default_users),
-                "rules_count": len(default_rules),
-            }
-        else:
-            return {
-                "status": "success",
-                "message": "Tables verified. Database already seeded previously.",
-                "seeded": False,
-                "existing_users_count": existing_users_count,
-            }
+        migrate_and_seed_db(db)
+        users_count = db.query(models.User).count()
+        rules_count = db.query(models.Rule).count()
+        return {
+            "status": "success",
+            "message": "Tables created, schema verified, and seeded successfully.",
+            "seeded": True,
+            "users_count": users_count,
+            "rules_count": rules_count,
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database setup failed: {str(e)}",
         )
+
+
+# ============================================================================
+# AUTHENTICATION & ACCESS CONTROL ENDPOINTS
+# ============================================================================
+
+@app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
+def register(
+    payload: schemas.UserRegister,
+    db: Session = Depends(get_db),
+):
+    """
+    Register new Citizen, Officer, or Admin:
+    - If email exists -> HTTP 400: 'User already exists. Please log in.'
+    - If role == 'OFFICER' -> status = 'PENDING'
+    - If role == 'CITIZEN' or 'ADMIN' -> status = 'APPROVED'
+    """
+    if not payload.email or not payload.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email and password are required.",
+        )
+
+    normalized_email = payload.email.strip().lower()
+    existing_user = (
+        db.query(models.User)
+        .filter(func.lower(models.User.email) == normalized_email)
+        .first()
+    )
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already exists. Please log in.",
+        )
+
+    role_str = (payload.role or "CITIZEN").strip().upper()
+    if role_str == "OFFICER":
+        user_status = "PENDING"
+    else:
+        user_status = "APPROVED"
+
+    hashed = hash_password(payload.password)
+
+    display_name = (payload.full_name or payload.name or "").strip()
+    if not display_name:
+        display_name = payload.email.split("@")[0].title()
+
+    new_user = models.User(
+        name=display_name,
+        full_name=display_name,
+        email=normalized_email,
+        hashed_password=hashed,
+        role=role_str,
+        zone=payload.zone or "Delhi (MCD)",
+        status=user_status,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    token = create_access_token(
+        data={"sub": new_user.email, "id": new_user.id, "role": new_user.role}
+    )
+
+    return {
+        "message": (
+            "Registration successful. Details sent to Admin for approval."
+            if user_status == "PENDING"
+            else "Registration successful."
+        ),
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": new_user.id,
+            "full_name": new_user.full_name,
+            "name": new_user.full_name,
+            "email": new_user.email,
+            "role": new_user.role,
+            "zone": new_user.zone,
+            "status": new_user.status,
+        },
+    }
+
+
+@app.post("/api/auth/login")
+async def login(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Authenticate user via JSON body or OAuth2 form:
+    - If credentials invalid -> HTTP 401: 'Invalid email or password.'
+    - If status == 'PENDING' -> HTTP 403: 'Account pending Admin approval.'
+    - If valid -> returns access_token and user profile.
+    """
+    email = None
+    password = None
+
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            email = body.get("email") or body.get("username")
+            password = body.get("password")
+        except Exception:
+            pass
+
+    if not email or not password:
+        try:
+            form = await request.form()
+            email = email or form.get("username") or form.get("email")
+            password = password or form.get("password")
+        except Exception:
+            pass
+
+    if not email or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email and password are required.",
+        )
+
+    normalized_email = email.strip().lower()
+    user = (
+        db.query(models.User)
+        .filter(func.lower(models.User.email) == normalized_email)
+        .first()
+    )
+
+    if not user or not verify_password(password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+        )
+
+    if user.status and user.status.upper() == "PENDING":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account pending Admin approval.",
+        )
+
+    token = create_access_token(
+        data={"sub": user.email, "id": user.id, "role": user.role}
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "full_name": user.full_name,
+            "name": user.full_name,
+            "email": user.email,
+            "role": user.role,
+            "zone": user.zone,
+            "status": user.status,
+        },
+    }
+
+
+# ============================================================================
+# ADMIN OFFICER APPROVAL WORKFLOW ENDPOINTS
+# ============================================================================
+
+@app.get("/api/admin/pending-officers", response_model=List[schemas.UserAuthResponse])
+def get_pending_officers(db: Session = Depends(get_db)):
+    """
+    Fetches all officer accounts awaiting administrator approval.
+    """
+    officers = (
+        db.query(models.User)
+        .filter(
+            func.upper(models.User.role) == "OFFICER",
+            func.upper(models.User.status) == "PENDING",
+        )
+        .order_by(models.User.id.desc())
+        .all()
+    )
+    return officers
+
+
+@app.patch("/api/admin/approve-officer/{user_id}", response_model=schemas.UserAuthResponse)
+def approve_officer(user_id: int, db: Session = Depends(get_db)):
+    """
+    Approves a pending officer, allowing them to authenticate and access the officer portal.
+    """
+    officer = db.query(models.User).filter(models.User.id == user_id).first()
+    if not officer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Officer with ID {user_id} not found.",
+        )
+    officer.status = "APPROVED"
+    db.commit()
+    db.refresh(officer)
+    return officer
 
 
 @app.get("/api/users", response_model=List[schemas.UserResponse])
@@ -210,9 +488,16 @@ async def upload_application(
                 detail=f"Citizen with id {citizen_id} not found",
             )
     else:
-        citizen = db.query(models.User).filter(models.User.role == "citizen").first()
+        citizen = db.query(models.User).filter(func.lower(models.User.role) == "citizen").first()
         if not citizen:
-            citizen = models.User(name="Ravi", role="citizen")
+            citizen = models.User(
+                full_name="Ravi Kumar",
+                email="citizen.ravi@gmail.com",
+                hashed_password=hash_password("Citizen@Naksha2026"),
+                role="CITIZEN",
+                zone="Delhi (MCD)",
+                status="APPROVED",
+            )
             db.add(citizen)
             db.commit()
             db.refresh(citizen)
