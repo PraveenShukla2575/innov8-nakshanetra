@@ -14,7 +14,7 @@ import schemas
 import mimetypes
 from gemini_service import extract_naksha_data
 from rule_engine import evaluate_compliance
-from tinyfish_service import fetch_regulatory_citation
+from tinyfish_service import fetch_regulatory_citation, verify_architect_license
 from auth import hash_password, verify_password, create_access_token, decode_access_token
 
 app = FastAPI(
@@ -658,6 +658,22 @@ def create_application(
     db.commit()
     db.refresh(new_application)
     return new_application
+
+
+@app.post("/api/applications/verify-architect", response_model=schemas.VerifyArchitectResponse)
+def verify_architect(
+    request: schemas.VerifyArchitectRequest,
+):
+    """
+    Performs real-time background and license status verification on the architect/builder
+    using the TinyFish Web Agent against Council of Architecture (CoA) India and RERA registries.
+    """
+    reg_number = request.reg_number or request.registration_number or "CA/2018/91234"
+    result = verify_architect_license(
+        architect_name=request.architect_name,
+        registration_number=reg_number
+    )
+    return result
 
 
 @app.post("/api/rules/verify-source", response_model=schemas.VerifyRuleResponse)

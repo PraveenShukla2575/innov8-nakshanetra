@@ -95,3 +95,19 @@ class VerifyRuleResponse(BaseModel):
     citation: str
     url: str
 
+
+class VerifyArchitectRequest(BaseModel):
+    architect_name: str
+    reg_number: Optional[str] = None
+    registration_number: Optional[str] = None
+
+
+class VerifyArchitectResponse(BaseModel):
+    status: str
+    source_url: str
+    message: str
+    architect_name: Optional[str] = None
+    registration_number: Optional[str] = None
+    registry: Optional[str] = None
+
+

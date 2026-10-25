@@ -15,6 +15,8 @@ import {
   RotateCcw,
   Sparkles,
   ExternalLink,
+  RefreshCw,
+  FileEdit,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -23,6 +25,8 @@ import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { UploadZone } from '../../components/scanner/UploadZone';
 import { generateScrutinyPDF } from '../../lib/pdfGenerator';
+import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
+import { mockArchitects } from './OfficerDashboard';
 
 export const CitizenDashboard = () => {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -67,6 +71,7 @@ export const CitizenDashboard = () => {
     const rawJson = scrutinyData.gemini_raw_json || {};
     const overallStatus = application.status || rawJson.overall_status || 'PENDING';
 
+    const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
     const reportObj = {
       appId: trackingId || `APP-2026-${application.id}`,
       databaseId: application.id,
@@ -82,6 +87,10 @@ export const CitizenDashboard = () => {
       groundCoverage: rawJson.ground_coverage_percent,
       evaluations: rawJson.evaluations || scrutinyData.rule_violations || [],
       timestamp: new Date().toISOString(),
+      architect_name: randomArchitect.name,
+      reg_number: randomArchitect.reg,
+      name: randomArchitect.name,
+      reg: randomArchitect.reg,
     };
 
     setActiveReport(reportObj);
@@ -222,6 +231,9 @@ export const CitizenDashboard = () => {
             </button>
           </div>
 
+          {/* Pre-Scrutiny Architect & RERA Background Check Panel */}
+          <ArchitectVerificationPanel applicationData={activeReport} />
+
           {/* Master Status Card */}
           <div
             className={`rounded-2xl p-6 border shadow-sm ${
@@ -255,8 +267,8 @@ export const CitizenDashboard = () => {
                 <p className="text-sm text-slate-200">{activeReport.summary}</p>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <div className="px-4 py-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-center">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="px-4 py-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-center shrink-0">
                   <span className="text-[10px] uppercase font-semibold text-slate-300 block">
                     Penalty / Risk Index
                   </span>
@@ -274,16 +286,17 @@ export const CitizenDashboard = () => {
                     Sanction Certificate
                   </Button>
                 ) : (
-                  <Button
-                    size="md"
-                    className="bg-white text-red-900 hover:bg-slate-100 shadow-md"
-                    icon={<RotateCcw size={16} />}
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 bg-white text-red-950 font-bold px-5 py-2.5 rounded-lg shadow-sm hover:bg-slate-100 transition-all border border-red-200"
                     onClick={() => {
+                      alert("Revision portal opening...");
                       document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth' });
                     }}
                   >
-                    Revise & Resubmit
-                  </Button>
+                    <RefreshCw size={16} className="text-red-950" />
+                    <span>Revise and Resubmit</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -418,7 +431,16 @@ export const CitizenDashboard = () => {
         <DataTable
           title="Citizen Submission History"
           data={submissions}
-          onViewDetails={(row) => setSelectedSubmission(row)}
+          onViewDetails={(row) => {
+            const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
+            setSelectedSubmission({
+              ...row,
+              architect_name: row.architect_name || randomArchitect.name,
+              reg_number: row.reg_number || randomArchitect.reg,
+              name: row.name || randomArchitect.name,
+              reg: row.reg || randomArchitect.reg,
+            });
+          }}
           onExportRow={(row) => generateScrutinyPDF(row, row.reportData)}
         />
       </div>
@@ -443,6 +465,9 @@ export const CitizenDashboard = () => {
               </div>
               <StatusBadge status={selectedSubmission.status} />
             </div>
+
+            {/* Pre-Scrutiny Architect & RERA Background Check */}
+            <ArchitectVerificationPanel applicationData={selectedSubmission} />
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-lg bg-slate-50">

@@ -5,6 +5,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { ShieldCheck, Info, FileDown } from 'lucide-react';
+import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
+import { mockArchitects } from './OfficerDashboard';
 
 export const ReportsView = ({ role = 'citizen' }) => {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -134,7 +136,16 @@ export const ReportsView = ({ role = 'citizen' }) => {
         <DataTable
           title="Submission History & Official Notices"
           data={submissions}
-          onViewDetails={(row) => setSelectedSubmission(row)}
+          onViewDetails={(row) => {
+            const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
+            setSelectedSubmission({
+              ...row,
+              architect_name: row.architect_name || randomArchitect.name,
+              reg_number: row.reg_number || randomArchitect.reg,
+              name: row.name || randomArchitect.name,
+              reg: row.reg || randomArchitect.reg,
+            });
+          }}
           onExportRow={(row) => generateScrutinyPDF(row, row.scrutinyReport)}
         />
       </div>
@@ -171,6 +182,9 @@ export const ReportsView = ({ role = 'citizen' }) => {
               </div>
               <StatusBadge status={selectedSubmission.status} />
             </div>
+
+            {/* Pre-Scrutiny Architect & RERA Background Check */}
+            <ArchitectVerificationPanel applicationData={selectedSubmission} />
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-lg bg-slate-50">

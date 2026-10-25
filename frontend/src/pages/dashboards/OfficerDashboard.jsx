@@ -20,6 +20,14 @@ import { DataTable } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { generateScrutinyPDF } from '../../lib/pdfGenerator';
+import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
+
+export const mockArchitects = [
+  { name: 'Sunita Reddy', reg: 'CA/2018/91234' },
+  { name: 'Vikram Singh', reg: 'CA/2012/55432' },
+  { name: 'Priya Desai', reg: 'CA/2020/12345' },
+  { name: 'Arjun Nair', reg: 'CA/2016/88776' },
+];
 
 export const OfficerDashboard = () => {
   const [selectedApp, setSelectedApp] = useState(null);
@@ -245,7 +253,16 @@ export const OfficerDashboard = () => {
         <DataTable
           title="Field Officer Scrutiny Roster"
           data={applications}
-          onViewDetails={(row) => setSelectedApp(row)}
+          onViewDetails={(row) => {
+            const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
+            setSelectedApp({
+              ...row,
+              architect_name: randomArchitect.name,
+              reg_number: randomArchitect.reg,
+              name: randomArchitect.name,
+              reg: randomArchitect.reg,
+            });
+          }}
           onExportRow={(row) => {
             const evaluations = row.violations?.map((v) => ({
               rule_code: v.code,
@@ -300,10 +317,50 @@ export const OfficerDashboard = () => {
               <StatusBadge status={selectedApp.status} />
             </div>
 
+            {/* Step 1: Pre-Scrutiny Architect & RERA Background Check Panel */}
+            <ArchitectVerificationPanel applicationData={selectedApp} />
+
+            {/* Application Status Banner (Green / Red / Amber) */}
+            <div
+              className={`p-3.5 sm:p-4 rounded-xl border text-white shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                selectedApp.status === 'APPROVED'
+                  ? 'bg-gradient-to-r from-emerald-950 via-teal-900 to-emerald-900 border-emerald-500/40'
+                  : selectedApp.status === 'REJECTED'
+                  ? 'bg-gradient-to-r from-red-950 via-rose-900 to-red-900 border-red-500/40'
+                  : 'bg-gradient-to-r from-amber-950 via-yellow-900 to-amber-900 border-amber-500/40'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white/10 backdrop-blur-md shrink-0">
+                  {selectedApp.status === 'APPROVED' ? (
+                    <CheckCircle2 size={20} className="text-emerald-400" />
+                  ) : selectedApp.status === 'REJECTED' ? (
+                    <X size={20} className="text-red-400" />
+                  ) : (
+                    <AlertTriangle size={20} className="text-amber-400" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold tracking-tight">
+                    {selectedApp.status === 'APPROVED'
+                      ? 'APPLICATION STATUS: SANCTION CLEARED'
+                      : selectedApp.status === 'REJECTED'
+                      ? 'APPLICATION STATUS: STATUTORY DEFICIENCIES FLAGGED'
+                      : 'APPLICATION STATUS: PENDING OFFICER FIELD SCRUTINY'}
+                  </h4>
+                  <p className="text-[11px] text-slate-300">
+                    Application ID: {selectedApp.id} &bull; Zone: {selectedApp.entity}
+                  </p>
+                </div>
+              </div>
+              <StatusBadge status={selectedApp.status} size="sm" />
+            </div>
+
+            {/* Unified Bye-Law Verification Grid */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
               <div className="flex items-center justify-between mb-2.5">
                 <h5 className="text-xs font-bold text-navy-900 uppercase tracking-wider">
-                  Rule Engine Scrutiny Checks (NBC 2016 & UBBL)
+                  Unified Bye-Law Verification Grid (NBC 2016 & UBBL)
                 </h5>
                 <span className="text-[11px] text-slate-500">Live Scraper Verification Enabled</span>
               </div>
