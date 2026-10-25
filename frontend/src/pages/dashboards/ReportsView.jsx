@@ -47,7 +47,9 @@ export const ReportsView = ({ role = 'citizen' }) => {
       status: 'APPROVED',
       officer: 'Sanjay Rawat (Zone II)',
       remarks: 'All setbacks and ground coverage compliant with Delhi Unified Bye-Laws.',
+      penalty_score: 0,
       scrutinyReport: {
+        penalty_score: 0,
         summary: 'All setbacks and ground coverage compliant with Delhi Unified Bye-Laws.',
         evaluations: [
           { rule_code: 'BL-001', parameter: 'Rear Setback Buffer', expected: '>= 3.0m', actual: '4.0m', passed: true, status: 'PASSED' },
@@ -65,7 +67,9 @@ export const ReportsView = ({ role = 'citizen' }) => {
       status: 'REJECTED',
       officer: 'Priya Sharma (Zone IV)',
       remarks: 'Deficiency: Ground coverage (65%) exceeds 50% threshold limit and rear setback is deficient.',
+      penalty_score: 100,
       scrutinyReport: {
+        penalty_score: 100,
         summary: 'Deficiency: Ground coverage (65%) exceeds 50% threshold limit and rear setback is deficient.',
         evaluations: [
           { rule_code: 'BL-001', parameter: 'Rear Setback Buffer', expected: '>= 3.0m', actual: '2.0m', passed: false, status: 'VIOLATION' },
@@ -83,7 +87,9 @@ export const ReportsView = ({ role = 'citizen' }) => {
       status: 'PENDING',
       officer: 'Amit Verma (Enforcement)',
       remarks: 'Automated AI scrutiny complete; awaiting officer field verification signoff.',
+      penalty_score: 0,
       scrutinyReport: {
+        penalty_score: 0,
         summary: 'Automated AI scrutiny complete; awaiting officer field verification signoff.',
         evaluations: [
           { rule_code: 'BL-001', parameter: 'Rear Setback Buffer', expected: '>= 3.0m', actual: '3.5m', passed: true, status: 'PASSED' },
@@ -100,7 +106,9 @@ export const ReportsView = ({ role = 'citizen' }) => {
       status: 'APPROVED',
       officer: 'Sanjay Rawat (Zone II)',
       remarks: 'Clearance granted with digital sanction verification seal.',
+      penalty_score: 0,
       scrutinyReport: {
+        penalty_score: 0,
         summary: 'Clearance granted with digital sanction verification seal.',
         evaluations: [
           { rule_code: 'BL-001', parameter: 'Rear Setback Buffer', expected: '>= 3.0m', actual: '4.5m', passed: true, status: 'PASSED' },
@@ -180,7 +188,27 @@ export const ReportsView = ({ role = 'citizen' }) => {
                 <h4 className="text-sm font-bold text-navy-900">{selectedSubmission.title}</h4>
                 <p className="text-xs text-slate-500 mt-0.5">{selectedSubmission.entity}</p>
               </div>
-              <StatusBadge status={selectedSubmission.status} />
+              <div className="flex items-center gap-2.5 shrink-0">
+                <div className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-center">
+                  <span className="text-[9px] uppercase font-semibold text-slate-500 block leading-tight">
+                    Penalty / Risk
+                  </span>
+                  <span className="text-xs font-bold text-navy-900 block leading-tight">
+                    {selectedSubmission.status === 'APPROVED'
+                      ? 0
+                      : (selectedSubmission.scrutinyReport?.penalty_score ??
+                         selectedSubmission.penalty_score ??
+                         (selectedSubmission.scrutinyReport?.evaluations
+                           ? Math.min(
+                               100,
+                               selectedSubmission.scrutinyReport.evaluations.filter((e) => e.passed === false).length * 50
+                             )
+                           : 0))}{' '}
+                    <span className="text-[10px] font-normal text-slate-400">/ 100</span>
+                  </span>
+                </div>
+                <StatusBadge status={selectedSubmission.status} />
+              </div>
             </div>
 
             {/* Pre-Scrutiny Architect & RERA Background Check */}

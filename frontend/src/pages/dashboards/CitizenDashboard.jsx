@@ -71,6 +71,15 @@ export const CitizenDashboard = () => {
     const rawJson = scrutinyData.gemini_raw_json || {};
     const overallStatus = application.status || rawJson.overall_status || 'PENDING';
 
+    const evaluationsList = rawJson.evaluations || scrutinyData.rule_violations || [];
+    const failedEvaluations = evaluationsList.filter((e) => e.passed === false);
+    const dynamicPenaltyScore =
+      overallStatus === 'APPROVED' || failedEvaluations.length === 0
+        ? 0
+        : rawJson.penalty_score !== undefined
+        ? rawJson.penalty_score
+        : Math.min(100, failedEvaluations.length * 50);
+
     const randomArchitect = mockArchitects[Math.floor(Math.random() * mockArchitects.length)];
     const reportObj = {
       appId: trackingId || `APP-2026-${application.id}`,
@@ -81,11 +90,12 @@ export const CitizenDashboard = () => {
       zone: zone,
       pdfUrl: application.pdf_url,
       summary: rawJson.summary || 'Architectural compliance check executed.',
-      riskScore: rawJson.risk_score ?? 0,
+      riskScore: dynamicPenaltyScore,
+      penalty_score: dynamicPenaltyScore,
       modelUsed: rawJson.raw_model || 'gemini-3.5-flash',
       rearSetback: rawJson.rear_setback_meters,
       groundCoverage: rawJson.ground_coverage_percent,
-      evaluations: rawJson.evaluations || scrutinyData.rule_violations || [],
+      evaluations: evaluationsList,
       timestamp: new Date().toISOString(),
       architect_name: randomArchitect.name,
       reg_number: randomArchitect.reg,
@@ -273,7 +283,8 @@ export const CitizenDashboard = () => {
                     Penalty / Risk Index
                   </span>
                   <span className="text-xl font-black mt-0.5 block">
-                    {activeReport.riskScore} <span className="text-xs font-normal">/ 100</span>
+                    {activeReport.status === 'APPROVED' ? 0 : (activeReport.penalty_score ?? activeReport.riskScore ?? 0)}{' '}
+                    <span className="text-xs font-normal">/ 100</span>
                   </span>
                 </div>
                 {activeReport.status === 'APPROVED' ? (
@@ -463,7 +474,23 @@ export const CitizenDashboard = () => {
                 <h4 className="text-sm font-bold text-navy-900">{selectedSubmission.title}</h4>
                 <p className="text-xs text-slate-500 mt-0.5">{selectedSubmission.entity}</p>
               </div>
-              <StatusBadge status={selectedSubmission.status} />
+              <div className="flex items-center gap-2.5 shrink-0">
+                <div className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-center">
+                  <span className="text-[9px] uppercase font-semibold text-slate-500 block leading-tight">
+                    Penalty / Risk
+                  </span>
+                  <span className="text-xs font-bold text-navy-900 block leading-tight">
+                    {selectedSubmission.status === 'APPROVED'
+                      ? 0
+                      : (selectedSubmission.reportData?.penalty_score ??
+                         selectedSubmission.penalty_score ??
+                         selectedSubmission.riskScore ??
+                         (selectedSubmission.status === 'REJECTED' ? 100 : 50))}{' '}
+                    <span className="text-[10px] font-normal text-slate-400">/ 100</span>
+                  </span>
+                </div>
+                <StatusBadge status={selectedSubmission.status} />
+              </div>
             </div>
 
             {/* Pre-Scrutiny Architect & RERA Background Check */}

@@ -69,9 +69,13 @@ export const OfficerDashboard = () => {
       entity: 'Okhla Ind. Area, Plot 45B',
       status: 'PENDING',
       officer: 'Priya Sharma (You)',
+      penalty_score: 50,
+      scrutinyReport: {
+        penalty_score: 50,
+      },
       violations: [
-        { code: 'BL-001', rule: 'Rear Setback Distance', actual: '2.20 m', required: 'Min 3.00 m', severity: 'Deficient' },
-        { code: 'BL-004', rule: 'Emergency Fire Exit Staircase Width', actual: '1.50 m', required: 'Min 1.50 m', severity: 'Compliant' },
+        { code: 'BL-001', rule: 'Rear Setback Distance', actual: '2.20 m', required: 'Min 3.00 m', severity: 'Deficient', passed: false },
+        { code: 'BL-004', rule: 'Emergency Fire Exit Staircase Width', actual: '1.50 m', required: 'Min 1.50 m', severity: 'Compliant', passed: true },
       ],
     },
     {
@@ -82,9 +86,13 @@ export const OfficerDashboard = () => {
       entity: 'Sector 22, Rohini, Plot 18',
       status: 'FLAGGED',
       officer: 'Priya Sharma (You)',
+      penalty_score: 50,
+      scrutinyReport: {
+        penalty_score: 50,
+      },
       violations: [
-        { code: 'BL-002', rule: 'Ground Coverage Ratio', actual: '53.2%', required: 'Max 50.0%', severity: 'Excessive' },
-        { code: 'BL-003', rule: 'Floor Area Ratio (FAR)', actual: '198', required: 'Max 200', severity: 'Compliant' },
+        { code: 'BL-002', rule: 'Ground Coverage Ratio', actual: '53.2%', required: 'Max 50.0%', severity: 'Excessive', passed: false },
+        { code: 'BL-003', rule: 'Floor Area Ratio (FAR)', actual: '198', required: 'Max 200', severity: 'Compliant', passed: true },
       ],
     },
     {
@@ -95,8 +103,12 @@ export const OfficerDashboard = () => {
       entity: 'Narela Phase 1, Shed 4',
       status: 'PENDING',
       officer: 'Priya Sharma (You)',
+      penalty_score: 0,
+      scrutinyReport: {
+        penalty_score: 0,
+      },
       violations: [
-        { code: 'BL-005', rule: 'Front Road Right of Way (ROW)', actual: '18.0 m', required: 'Min 18.0 m', severity: 'Compliant' },
+        { code: 'BL-005', rule: 'Front Road Right of Way (ROW)', actual: '18.0 m', required: 'Min 18.0 m', severity: 'Compliant', passed: true },
       ],
     },
     {
@@ -107,8 +119,12 @@ export const OfficerDashboard = () => {
       entity: 'Sector 14, Dwarka, Plot 89',
       status: 'APPROVED',
       officer: 'Priya Sharma (You)',
+      penalty_score: 0,
+      scrutinyReport: {
+        penalty_score: 0,
+      },
       violations: [
-        { code: 'BL-ALL', rule: 'All NBC 2016 Bye-Laws', actual: '100% Pass', required: 'Pass', severity: 'Compliant' },
+        { code: 'BL-ALL', rule: 'All NBC 2016 Bye-Laws', actual: '100% Pass', required: 'Pass', severity: 'Compliant', passed: true },
       ],
     },
     {
@@ -119,8 +135,13 @@ export const OfficerDashboard = () => {
       entity: 'Bawana Industrial Estate',
       status: 'REJECTED',
       officer: 'Priya Sharma (You)',
+      penalty_score: 100,
+      scrutinyReport: {
+        penalty_score: 100,
+      },
       violations: [
-        { code: 'BL-007', rule: 'Hazardous Chemical Buffer Zone', actual: '5.0 m', required: 'Min 12.0 m', severity: 'Critical Hazard' },
+        { code: 'BL-007', rule: 'Hazardous Chemical Buffer Zone', actual: '5.0 m', required: 'Min 12.0 m', severity: 'Critical Hazard', passed: false },
+        { code: 'BL-001', rule: 'Rear Setback Distance', actual: '2.10 m', required: 'Min 4.00 m', severity: 'Deficient', passed: false },
       ],
     },
   ]);
@@ -353,7 +374,29 @@ export const OfficerDashboard = () => {
                   </p>
                 </div>
               </div>
-              <StatusBadge status={selectedApp.status} size="sm" />
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="px-3.5 py-1.5 rounded-lg bg-white/10 backdrop-blur-md border border-white/15 text-center shrink-0">
+                  <span className="text-[9px] uppercase font-semibold text-slate-300 block">
+                    Penalty / Risk Index
+                  </span>
+                  <span className="text-sm sm:text-base font-black text-white block">
+                    {selectedApp.status === 'APPROVED'
+                      ? 0
+                      : (selectedApp.scrutinyReport?.penalty_score ??
+                         selectedApp.penalty_score ??
+                         (selectedApp.violations
+                           ? Math.min(
+                               100,
+                               selectedApp.violations.filter(
+                                 (v) => v.passed === false || (v.severity && v.severity !== 'Compliant')
+                               ).length * 50
+                             )
+                           : 0))}{' '}
+                    <span className="text-[10px] font-normal text-slate-300">/ 100</span>
+                  </span>
+                </div>
+                <StatusBadge status={selectedApp.status} size="sm" />
+              </div>
             </div>
 
             {/* Unified Bye-Law Verification Grid */}
