@@ -32,13 +32,6 @@ const CATEGORY_OPTIONS = [
   'Mixed-Use Commercial & Residential',
 ];
 
-const PLAN_TYPE_OPTIONS = [
-  'Architectural Layout (Ground Floor)',
-  'Elevation & Cross Section',
-  'Site Plan & Setback Drawing',
-  'Full Structural / Sanction Set',
-];
-
 export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
   const [stagedFiles, setStagedFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
@@ -99,7 +92,6 @@ export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
           size: formatFileSize(file.size),
           isImage: isImg,
           previewUrl: isImg ? URL.createObjectURL(file) : null,
-          planType: PLAN_TYPE_OPTIONS[(stagedFiles.length + i) % PLAN_TYPE_OPTIONS.length],
         };
       });
 
@@ -136,12 +128,6 @@ export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
       }
       return prev.filter((p) => p.id !== id);
     });
-  };
-
-  const updatePlanType = (id, planType) => {
-    setStagedFiles((prev) =>
-      prev.map((pdf) => (pdf.id === id ? { ...pdf, planType } : pdf))
-    );
   };
 
   // 1-Click Load Pre-generated Demo Test Plans
@@ -382,7 +368,7 @@ export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
                 key={item.id}
                 className="group relative bg-slate-50 rounded-xl border border-slate-200 overflow-hidden hover:border-primary-300 transition-all duration-200 p-4"
               >
-                <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     {item.isImage && item.previewUrl ? (
                       <img
@@ -406,31 +392,12 @@ export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
                     <button
                       type="button"
                       onClick={() => removeFile(item.id)}
-                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
                       title="Remove File"
                     >
-                      <X size={15} />
+                      <X size={16} />
                     </button>
                   )}
-                </div>
-
-                {/* Plan Type Selector */}
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                    Drawing Classification
-                  </label>
-                  <select
-                    value={item.planType}
-                    disabled={isScanning}
-                    onChange={(e) => updatePlanType(item.id, e.target.value)}
-                    className="w-full text-xs font-medium text-navy-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  >
-                    {PLAN_TYPE_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
                 </div>
               </div>
             ))}
