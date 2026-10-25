@@ -21,6 +21,7 @@ import { Modal } from '../../components/ui/Modal';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
+import { useAuth } from '../../context/AuthContext';
 
 export const mockArchitects = [
   { name: 'Sunita Reddy', reg: 'CA/2018/91234' },
@@ -30,6 +31,7 @@ export const mockArchitects = [
 ];
 
 export const OfficerDashboard = () => {
+  const { user } = useAuth();
   const [selectedApp, setSelectedApp] = useState(null);
   const [verifyingCode, setVerifyingCode] = useState(null);
   const [ruleCitations, setRuleCitations] = useState({});
@@ -160,6 +162,8 @@ export const OfficerDashboard = () => {
     setSelectedApp(null);
   };
 
+  const applicationData = selectedApp;
+
   return (
     <div className="space-y-8 pb-10">
       {/* Officer Station Hero Banner (Navy/Indigo) */}
@@ -167,7 +171,7 @@ export const OfficerDashboard = () => {
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-500/20 text-primary-300 border border-primary-400/30 text-xs font-semibold uppercase tracking-wider mb-3">
             <ShieldCheck size={14} />
-            Field Scrutiny Enforcement Wing
+            Field Scrutiny Enforcement Wing{user?.full_name ? ` • Officer: ${user.full_name}` : ''}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Building Bye-Law Scrutiny Queue
@@ -380,14 +384,14 @@ export const OfficerDashboard = () => {
                     Penalty / Risk Index
                   </span>
                   <span className="text-sm sm:text-base font-black text-white block">
-                    {selectedApp.status === 'APPROVED'
+                    {applicationData?.status === 'APPROVED'
                       ? 0
-                      : (selectedApp.scrutinyReport?.penalty_score ??
-                         selectedApp.penalty_score ??
-                         (selectedApp.violations
+                      : (applicationData?.scrutinyReport?.penalty_score ??
+                         applicationData?.penalty_score ??
+                         (applicationData?.violations
                            ? Math.min(
                                100,
-                               selectedApp.violations.filter(
+                               applicationData.violations.filter(
                                  (v) => v.passed === false || (v.severity && v.severity !== 'Compliant')
                                ).length * 50
                              )

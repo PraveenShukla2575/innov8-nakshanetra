@@ -54,6 +54,8 @@ class ApplicationCreate(BaseModel):
 class ScrutinyReportResponse(BaseModel):
     id: int
     application_id: int
+    penalty_score: Optional[float] = None
+    risk_score: Optional[float] = None
     gemini_raw_json: Optional[Any] = None
     rule_violations: Optional[Any] = None
 

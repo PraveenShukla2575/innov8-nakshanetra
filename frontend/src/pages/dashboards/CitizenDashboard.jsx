@@ -27,8 +27,10 @@ import { UploadZone } from '../../components/scanner/UploadZone';
 import { generateScrutinyPDF } from '../../lib/pdfGenerator';
 import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
 import { mockArchitects } from './OfficerDashboard';
+import { useAuth } from '../../context/AuthContext';
 
 export const CitizenDashboard = () => {
+  const { user } = useAuth();
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [activeReport, setActiveReport] = useState(null); // Real-time Scrutiny Report from Gemini + Rule Engine
   const [submissions, setSubmissions] = useState([
@@ -132,7 +134,7 @@ export const CitizenDashboard = () => {
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold uppercase tracking-wider mb-3">
             <ShieldCheck size={14} />
-            Public Civic Portal
+            Public Civic Portal{user?.full_name ? ` • Citizen: ${user.full_name}` : ''}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Automated Building Bye-Law Scrutiny
@@ -283,7 +285,7 @@ export const CitizenDashboard = () => {
                     Penalty / Risk Index
                   </span>
                   <span className="text-xl font-black mt-0.5 block">
-                    {activeReport.status === 'APPROVED' ? 0 : (activeReport.penalty_score ?? activeReport.riskScore ?? 0)}{' '}
+                    {activeReport.status === 'APPROVED' ? 0 : (activeReport.scrutinyReport?.penalty_score ?? activeReport.penalty_score ?? activeReport.riskScore ?? 0)}{' '}
                     <span className="text-xs font-normal">/ 100</span>
                   </span>
                 </div>
