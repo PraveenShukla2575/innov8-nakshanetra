@@ -9,7 +9,7 @@ export default function Navbar() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/users');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/users`);
         if (response.data && Array.isArray(response.data) && response.data.length > 0) {
           setUsersList(response.data);
           const defaultCitizen =

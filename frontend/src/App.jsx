@@ -77,7 +77,7 @@ function AppRoutes() {
 
     const checkHealth = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/health', {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/health`, {
           timeout: 4000,
         });
         if (isMounted) {
