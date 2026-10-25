@@ -5,6 +5,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { ShieldCheck, Info, FileDown } from 'lucide-react';
+import { ArchitectVerificationPanel } from '../../components/scanner/ArchitectVerificationPanel';
 
 export const ReportsView = ({ role = 'citizen' }) => {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -171,6 +172,9 @@ export const ReportsView = ({ role = 'citizen' }) => {
               </div>
               <StatusBadge status={selectedSubmission.status} />
             </div>
+
+            {/* Pre-Scrutiny Architect & RERA Background Check */}
+            <ArchitectVerificationPanel applicationData={selectedSubmission} />
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-lg bg-slate-50">
