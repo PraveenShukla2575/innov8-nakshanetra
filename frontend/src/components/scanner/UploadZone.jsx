@@ -174,7 +174,7 @@ export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
-          timeout: 45000,
+          timeout: 90000,
         }
       );
 
@@ -203,13 +203,22 @@ export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       console.error('Scrutiny upload failed:', err);
-      const detailMsg =
-        err.response?.data?.detail ||
-        err.message ||
-        'Failed to connect to backend scrutiny engine.';
+
+      let detailMsg = 'Failed to connect to backend scrutiny engine.';
+      if (err.code === 'ECONNABORTED' || err.message?.toLowerCase().includes('timeout')) {
+        detailMsg = 'Verification request timed out after 90 seconds while waiting for AI scrutiny engine. Please retry or check server logs.';
+      } else if (err.response?.data?.detail) {
+        detailMsg =
+          typeof err.response.data.detail === 'string'
+            ? err.response.data.detail
+            : JSON.stringify(err.response.data.detail);
+      } else if (err.message) {
+        detailMsg = err.message;
+      }
       setError(`Scrutiny Error: ${detailMsg}`);
     } finally {
       setIsScanning(false);
+      setScanStage('');
     }
   };
 

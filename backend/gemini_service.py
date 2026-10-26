@@ -1,8 +1,11 @@
 import os
+import io
 import json
 import logging
-from typing import Dict, Any, Optional
+import asyncio
+from typing import Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
+from PIL import Image
 import google.generativeai as genai
 
 # Configure logging
@@ -47,11 +50,54 @@ def clean_json_text(text: str) -> str:
         text = text[start_idx:end_idx + 1]
     return text.strip()
 
-def extract_naksha_data(file_bytes: bytes, mime_type: str = "image/jpeg") -> Dict[str, Any]:
+def optimize_image_for_gemini(file_bytes: bytes, mime_type: str = "image/jpeg") -> Tuple[bytes, str]:
+    """
+    Compresses and downscales architectural blueprint before sending to Gemini:
+    - Opens the image with PIL
+    - Converts it to RGB
+    - Resizes so maximum dimension is 2048 pixels (maintaining aspect ratio)
+    - Compresses to JPEG with 85% quality
+    Returns optimized bytes and 'image/jpeg' mime type.
+    If the file cannot be opened as an image (e.g. PDF), safely returns original bytes and mime type.
+    """
+    try:
+        with Image.open(io.BytesIO(file_bytes)) as img:
+            img = img.convert("RGB")
+            width, height = img.size
+            max_dim = 2048
+
+            if max(width, height) > max_dim:
+                scale = max_dim / max(width, height)
+                new_width = int(width * scale)
+                new_height = int(height * scale)
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                logger.info(
+                    f"Resized blueprint image dimensions: {width}x{height} -> {new_width}x{new_height}"
+                )
+            else:
+                logger.info(f"Blueprint dimensions ({width}x{height}) within {max_dim}px limit. No downscaling needed.")
+
+            output_io = io.BytesIO()
+            img.save(output_io, format="JPEG", quality=85, optimize=True)
+            compressed_bytes = output_io.getvalue()
+
+            orig_kb = round(len(file_bytes) / 1024, 1)
+            new_kb = round(len(compressed_bytes) / 1024, 1)
+            logger.info(
+                f"Image compression complete: {orig_kb} KB -> {new_kb} KB ({round(orig_kb - new_kb, 1)} KB saved)"
+            )
+            return compressed_bytes, "image/jpeg"
+    except Exception as e:
+        logger.warning(f"Image optimization skipped (e.g., PDF or raw binary): {str(e)}")
+        return file_bytes, mime_type
+
+async def extract_naksha_data(file_bytes: bytes, mime_type: str = "image/jpeg") -> Dict[str, Any]:
     """
     Sends building plan bytes to Gemini Multimodal Vision API and extracts
     rear_setback_meters and ground_coverage_percent into a python dict.
-    Tries gemini-1.5-flash first, and if unavailable/error, falls back to gemini-3.5-flash.
+    Tries gemini-3.5-flash first, and if unavailable/error, falls back to alternative available models.
+    Non-blocking: Uses asyncio.to_thread for image optimization and model generation
+    to prevent freezing FastAPI's main event loop.
     """
     if not GEMINI_API_KEY:
         error_msg = "GEMINI_API_KEY not configured. Cannot process plan."
@@ -62,8 +108,13 @@ def extract_naksha_data(file_bytes: bytes, mime_type: str = "image/jpeg") -> Dic
             "error": error_msg
         }
 
-    # Model priority list (user requested 1.5-flash; fall back to available 3.5-flash / flash-lite)
-    models_to_try = ["gemini-1.5-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    # Pre-process & downscale image in threadpool to prevent CPU work from blocking event loop
+    processed_bytes, target_mime = await asyncio.to_thread(
+        optimize_image_for_gemini, file_bytes, mime_type
+    )
+
+    # Model priority list (uses currently active models supported by the Gemini API)
+    models_to_try = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]
     last_error: Optional[Exception] = None
 
     for model_name in models_to_try:
@@ -74,8 +125,8 @@ def extract_naksha_data(file_bytes: bytes, mime_type: str = "image/jpeg") -> Dic
             contents = [
                 PROMPT,
                 {
-                    "mime_type": mime_type,
-                    "data": file_bytes
+                    "mime_type": target_mime,
+                    "data": processed_bytes
                 }
             ]
             
@@ -85,7 +136,9 @@ def extract_naksha_data(file_bytes: bytes, mime_type: str = "image/jpeg") -> Dic
                 "response_mime_type": "application/json"
             }
             
-            response = model.generate_content(
+            # Offload synchronous network request to threadpool via asyncio.to_thread
+            response = await asyncio.to_thread(
+                model.generate_content,
                 contents,
                 generation_config=generation_config
             )
@@ -136,3 +189,17 @@ def extract_naksha_data(file_bytes: bytes, mime_type: str = "image/jpeg") -> Dic
         "error": error_message,
         "raw_model": "spatial-estimator-fallback"
     }
+
+def extract_naksha_data_sync(file_bytes: bytes, mime_type: str = "image/jpeg") -> Dict[str, Any]:
+    """Synchronous convenience wrapper if invoked outside an existing async loop."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(asyncio.run, extract_naksha_data(file_bytes, mime_type)).result()
+    else:
+        return asyncio.run(extract_naksha_data(file_bytes, mime_type))

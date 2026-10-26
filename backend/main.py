@@ -167,13 +167,13 @@ def on_startup():
         migrate_and_seed_db(db)
 
 
-def process_naksha_file(filename: str, file_bytes: bytes, mime_type: str, db: Session) -> dict:
+async def process_naksha_file(filename: str, file_bytes: bytes, mime_type: str, db: Session) -> dict:
     """
     Processes building plan using Gemini Multimodal AI extraction and
     deterministic Bye-Law Rule Engine evaluation against PostgreSQL/SQLite rules.
     """
-    # 1. Extract architectural metrics using Gemini Vision
-    extracted_data = extract_naksha_data(file_bytes, mime_type=mime_type)
+    # 1. Extract architectural metrics using Gemini Vision (non-blocking async)
+    extracted_data = await extract_naksha_data(file_bytes, mime_type=mime_type)
 
     # 2. Query active Bye-Law Rules from Database
     db_rules = db.query(models.Rule).all()
@@ -236,7 +236,7 @@ def read_root():
 
 
 @app.get("/api/health")
-def health_check():
+async def health_check():
     return {
         "status": "ok",
         "message": "NakshaNetra API is running on Supabase",
@@ -521,8 +521,8 @@ async def upload_application(
         guessed_type, _ = mimetypes.guess_type(file.filename or "")
         content_type = guessed_type or "image/jpeg"
 
-    # Process file with Gemini Multimodal Vision & Rule Engine
-    report_dict = process_naksha_file(file.filename or "naksha.pdf", file_bytes, content_type, db)
+    # Process file with Gemini Multimodal Vision & Rule Engine (non-blocking)
+    report_dict = await process_naksha_file(file.filename or "naksha.pdf", file_bytes, content_type, db)
     application_status = report_dict["overall_status"]
 
     # Create new application with evaluated compliance status (APPROVED, REJECTED, PENDING_REVIEW)
