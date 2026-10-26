@@ -1,5 +1,13 @@
 # NakshaNetra: Automated Building Bye-Law Compliance Engine
 
+**Built for HackIIITD '26** 🚀
+
+### Live Demo
+The application is successfully deployed and live:
+- **Frontend (Vercel):** https://innov8-nakshanetra-99rm.vercel.app
+
+- **Backend:** Hosted on Render
+
 NakshaNetra eliminates the tedious, weeks-long manual bottleneck in urban building permit approvals by automating architectural plan scrutiny through a hybrid AI and rule-driven pipeline. By pairing multimodal computer vision for spatial metric extraction with a deterministic statutory compliance engine and live web-based regulatory retrieval, NakshaNetra delivers rapid, transparent, and tamper-proof building plan assessments.
 
 ---
