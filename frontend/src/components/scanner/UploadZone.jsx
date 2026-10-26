@@ -168,7 +168,7 @@ export const UploadZone = ({ onScrutinyComplete = () => {} }) => {
       formData.append('citizen_id', '1');
 
       const response = await axios.post(
-        `http://localhost:8000/api/applications/upload`,
+        `${import.meta.env.VITE_API_URL}/api/applications/upload`,
         formData,
         {
           headers: {

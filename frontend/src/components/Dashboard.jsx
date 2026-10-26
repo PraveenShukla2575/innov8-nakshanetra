@@ -128,7 +128,7 @@ export default function Dashboard() {
 
       try {
         const response = await axios.get(
-          `http://localhost:8000/api/applications?user_id=${currentUser.id}&role=${currentUser.role}`
+          `${import.meta.env.VITE_API_URL}/api/applications?user_id=${currentUser.id}&role=${currentUser.role}`
         );
         if (isMounted && response.data && Array.isArray(response.data)) {
           setApplications(response.data);

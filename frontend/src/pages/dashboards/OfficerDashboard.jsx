@@ -42,7 +42,7 @@ export const OfficerDashboard = () => {
 
   const handleVerifyRule = async (ruleCode, parameterName) => {
     setVerifyingCode(ruleCode);
-    const API_BASE = import.meta.env.VITE_API_URL || `http://localhost:8000`;
+    const API_BASE = import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL}`;
     try {
       const response = await axios.post(`${API_BASE}/api/rules/verify-source`, {
         rule_code: ruleCode,
